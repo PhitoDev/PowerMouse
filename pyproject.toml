@@ -1,0 +1,21 @@
+[project]
+name = "PowerMouse"
+version = "0.0.1"
+description = ""
+authors = [
+    { name = "Ralph Dugue", email = "rdugue1@gmail.com" }
+]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+sqlalchemy = "^2.0.49"
+opencv-python = "^4.13.0.92"
+
+
+[dependency-groups]
+dev = ["pytest (>=9.0.3,<10.0.0)"]
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
