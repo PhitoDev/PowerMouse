@@ -20,12 +20,32 @@ The target audience is people
  1. **Profile Management**
   * As a user, I want to create profiles to manage my PowerMouse settings.
   * As a user, I want my profile to remember which camera to user, for PowerMouse 
-  * As a user, I want my profile to remember my speed and sensitivity settings.
-  *  As a user, I want my profile to remember my mouse clicking configuration.
- 2. **Onboarding**
-  * As a user, the first time I open the app, I want it to prompt me to create a profile.
-  * As a user, I want to be prompted 
+  * As a user, I want my profile to remember my acceleration, speed and sensitivity settings for face tracking.
+  * As a user, I want my profile to remember my mouse clicking configuration.
+2. **Onboarding**
+ * As a user, the first time I open the app, I want it to prompt me to create a profile.
+  * As a user, I want to select which camera to use from my available devices.
+  * As a user, I want to do initial calibration of the camera for tracking.
+  * As a user, I want to configure which clicking options I want to use.
  3. **Face Tracking**
+  * As a user, I want to move the mouse cursor with my head movements.
+  * 
  4. **Gesture Clicking**
+  * As a user, I want to perform a left click when I wink my left eye.
+  * As a user I want to perform a right click when I wink my right eye.
+  * As a user, I want to toggle holding left click down with opening my jaw.
+  * As a user, I want to toggle holding down right click with making my eyes wide.
+  * As a user I want to perform a middle click when I raise both eyebrows.
+  * As a user, I want to perform a double click when I look up with both eyes.
  5. **Dwell Clicking**
- 6. **Voice Clicking**
+  * As a user, I want a small, transparent, docked window with different click modes to choose from.
+  * As a user, I want to dwell over a button on the docked window to select a click mode.
+  * As a user, I want the following click modes as options:
+  
+    * **Pause Clicking**
+    * **Left Click**
+    * **Right Click**
+    * **Middle Click**
+    * **Drag Click**
+  * As a user, I want drag click to work with left, right and middle click, dependent on which is active.
+ 6. **Voice Clicking**(TODO)
