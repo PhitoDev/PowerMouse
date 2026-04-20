@@ -664,6 +664,17 @@ opencv-contrib-python = "*"
 sounddevice = ">=0.5,<1.0"
 
 [[package]]
+name = "mouse"
+version = "0.7.1"
+description = "Hook and simulate mouse events on Windows and Linux"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "mouse-0.7.1-py2.py3-none-any.whl", hash = "sha256:d34bb9548890089fcb11988400e26f55c624e6c7b741fff75fedfdfbd37c0016"},
+]
+
+[[package]]
 name = "numpy"
 version = "2.4.4"
 description = "Fundamental package for array computing in Python"
@@ -1155,4 +1166,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "0efc80dd2c8f8fa4a6e01b95da57d115bcd25372a7b10613ebf50aa0f5041182"
+content-hash = "ebb894a301ff7f05694500530766a505f6e1d4e834ad5f3102cc492a9dc23ee4"
