@@ -38,8 +38,11 @@ Cursor movement is determined by tracking the center point of the user's nose. T
 Clicking actions are triggered via MediaPipe's pre-calculated Facial Blendshapes, avoiding the computational overhead of secondary classification models (e.g., OpenCV KNN). Blendshapes provide float values \[0.0, 1.0\] for muscle activation:
 
 * **Left Click:** \`eyeBlinkLeft\`  
+* **Left Double Click:** \`eyeSquintLeft\`
 * **Right Click:** \`eyeBlinkRight\`  
+* **Middle Click:** \`browInnerUp\`
 * **Drag/Scroll Mode Toggle:** \`jawOpen\`
+* **Drag Right Click Toggle:** \`eyeSquintRight\`
 
 ## **5\. Signal Processing & Smoothness Engine**
 

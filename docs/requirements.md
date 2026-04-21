@@ -23,20 +23,20 @@ The target audience is people
   * As a user, I want my profile to remember my acceleration, speed and sensitivity settings for face tracking.
   * As a user, I want my profile to remember my mouse clicking configuration.
 2. **Onboarding**
- * As a user, the first time I open the app, I want it to prompt me to create a profile.
+  * As a user, the first time I open the app, I want it to prompt me to create a profile.
   * As a user, I want to select which camera to use from my available devices.
   * As a user, I want to do initial calibration of the camera for tracking.
   * As a user, I want to configure which clicking options I want to use.
  3. **Face Tracking**
   * As a user, I want to move the mouse cursor with my head movements.
-  * 
+  * As a user, I want to adjust the the acceleration, speed and sensitivity of the mouse cursor.
  4. **Gesture Clicking**
   * As a user, I want to perform a left click when I wink my left eye.
   * As a user I want to perform a right click when I wink my right eye.
   * As a user, I want to toggle holding left click down with opening my jaw.
-  * As a user, I want to toggle holding down right click with making my eyes wide.
+  * As a user, I want to toggle holding down right click with squinting my right eye.
   * As a user I want to perform a middle click when I raise both eyebrows.
-  * As a user, I want to perform a double click when I look up with both eyes.
+  * As a user, I want to perform a double click when I squint my left eye.
  5. **Dwell Clicking**
   * As a user, I want a small, transparent, docked window with different click modes to choose from.
   * As a user, I want to dwell over a button on the docked window to select a click mode.
