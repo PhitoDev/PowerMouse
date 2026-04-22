@@ -1,15 +1,19 @@
 from dataclasses import dataclass, field
 
-from powermouse.domain.entities.mouse import ClickInterface
-
 from .camera import FaceTrackerSettings
+from .mouse import ClickInterface
 
 
 @dataclass
 class Profile:
+    profile_id: int
     name: str
     face_tracker_settings: FaceTrackerSettings
+    is_active: bool = field(default=False)
     click_interfaces: dict[ClickInterface, bool] = field(default_factory=dict)
+
+    def set_active(self, active: bool):
+        self.is_active = active
 
     def toggle_click_interface(self, interface: ClickInterface, enabled: bool):
         self.click_interfaces[interface] = enabled

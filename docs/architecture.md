@@ -85,6 +85,39 @@ class SmoothnessEngine:
             return "CLICK_UP"  
         return "HOLD"
 ```
+# Example Screen Coordinates 
+```python
+import numpy as np
+
+# Screen dimensions (e.g., from your OS or hardcoded)
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+
+# The Active Area (The smaller these numbers, the higher the sensitivity)
+# A bounding box between 40% and 60% of the camera frame
+X_MIN, X_MAX = 0.4, 0.6  
+Y_MIN, Y_MAX = 0.4, 0.6  
+
+def get_target_mouse_position(nose_landmark):
+    # 1. Extract and invert X
+    raw_x = 1.0 - nose_landmark.x
+    raw_y = nose_landmark.y
+    
+    # 2. Clip the values to stay within our Active Area
+    clipped_x = np.clip(raw_x, X_MIN, X_MAX)
+    clipped_y = np.clip(raw_y, Y_MIN, Y_MAX)
+    
+    # 3. Normalize the clipped values back to a 0.0 -> 1.0 scale
+    # This formula maps the small Active Area to the full screen
+    mapped_x = (clipped_x - X_MIN) / (X_MAX - X_MIN)
+    mapped_y = (clipped_y - Y_MIN) / (Y_MAX - Y_MIN)
+    
+    # 4. Multiply by Screen Resolution
+    target_screen_x = int(mapped_x * SCREEN_WIDTH)
+    target_screen_y = int(mapped_y * SCREEN_HEIGHT)
+    
+    return target_screen_x, target_screen_y
+```
 ## **6. Future Considerations**
 
 While the current architecture optimizes for accessibility via software APIs, future iterations targeting video games with kernel-level anti-cheat (e.g., Vanguard) will require migrating the output layer from software injection (`SendInput`) to a Hardware HID Proxy (e.g., passing smoothed coordinates via Serial to an ATmega32U4 microcontroller).

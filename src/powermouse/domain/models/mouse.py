@@ -27,6 +27,14 @@ class MouseEvent:
         return f"{self.button} ({self.x}, {self.y})"
 
 
+class MouseEventListener:
+    def __init__(self, callback):
+        self.callback = callback
+
+    def on_event(self, event: MouseEvent):
+        self.callback(event)
+
+
 class ClickInterface(Enum):
     GESTURE = "gesture"
     DWELL = "dwell"

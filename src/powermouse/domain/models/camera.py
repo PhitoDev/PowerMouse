@@ -23,8 +23,14 @@ class FaceTrackerSettings:
     camera: Camera
     speed: float
     acceleration: float
-    sensitivity: float
+    sensitivity: tuple[float, float]
     smoothness: float
+    # Signal-processing thresholds (see docs/architecture.md §5).
+    deadzone_radius_px: int = 5
+    active_area_x: tuple[float, float] = (0.4, 0.6)
+    active_area_y: tuple[float, float] = (0.4, 0.6)
+    click_threshold_high: float = 0.6
+    click_threshold_low: float = 0.4
 
     def update(self, **kwargs):
         for key, value in kwargs.items():
