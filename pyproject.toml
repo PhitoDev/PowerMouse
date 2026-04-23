@@ -15,6 +15,7 @@ dearpygui = "^2.3"
 mediapipe = "^0.10.33"
 mouse = "^0.7.1"
 numpy = "^2.4.4"
+screeninfo = "^0.8.1"
 
 
 [dependency-groups]
