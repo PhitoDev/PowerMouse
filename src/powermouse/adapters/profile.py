@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Iterable, List, Optional
 
 import numpy as np
+from platformdirs import user_data_path
 from sqlalchemy import JSON, Boolean, Float, Integer, String, create_engine, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
@@ -14,7 +14,9 @@ from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.profile import Profile
 
 
-_DEFAULT_DB_DIR = Path.home() / ".powermouse"
+_APP_NAME = "PowerMouse"
+_APP_AUTHOR = "dev.phito"
+_DEFAULT_DB_DIR = user_data_path(_APP_NAME, _APP_AUTHOR)
 _DEFAULT_DB_PATH = _DEFAULT_DB_DIR / "profiles.db"
 _PLACEHOLDER_FRAME = np.zeros((0, 0, 3), dtype=np.uint8)
 

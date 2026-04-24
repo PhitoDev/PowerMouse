@@ -21,6 +21,38 @@ def _platform_backend() -> int:
     return cv2.CAP_ANY
 
 
+def probe_cameras(max_index: int = 10) -> List[Camera]:
+    """Probe camera indices and return a list of available devices.
+
+    OpenCV does not expose a portable enumerate API, so this opens each
+    index in turn and collects the ones that succeed. Safe to call before
+    any OpenCVCameraController instance exists (used by onboarding).
+    """
+    found: List[Camera] = []
+    backend = _platform_backend()
+    for idx in range(max_index):
+        cap = cv2.VideoCapture(idx, backend)
+        try:
+            if not cap.isOpened():
+                continue
+            fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
+            found.append(
+                Camera(
+                    name=f"Camera {idx}",
+                    id=str(idx),
+                    fps=float(fps),
+                    current_frame=_EMPTY_FRAME.copy(),
+                    frame_width=width,
+                    frame_height=height,
+                )
+            )
+        finally:
+            cap.release()
+    return found
+
+
 class OpenCVCameraController(CameraController):
     """OpenCV-backed CameraController using cv2.VideoCapture."""
 
@@ -30,34 +62,8 @@ class OpenCVCameraController(CameraController):
         self._capture: Optional[cv2.VideoCapture] = None
 
     def list_cameras(self, max_index: int = 10) -> List[Camera]:  # type: ignore[override]
-        """Probe camera indices and return a list of available devices.
-
-        OpenCV does not expose a portable enumerate API, so this opens each
-        index in turn and collects the ones that succeed.
-        """
-        found: List[Camera] = []
-        backend = _platform_backend()
-        for idx in range(max_index):
-            cap = cv2.VideoCapture(idx, backend)
-            try:
-                if not cap.isOpened():
-                    continue
-                fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 0)
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 0)
-                found.append(
-                    Camera(
-                        name=f"Camera {idx}",
-                        id=str(idx),
-                        fps=float(fps),
-                        current_frame=_EMPTY_FRAME.copy(),
-                        frame_width=width,
-                        frame_height=height,
-                    )
-                )
-            finally:
-                cap.release()
-        return found
+        """Probe camera indices and return a list of available devices."""
+        return probe_cameras(max_index)
 
     def start_stream(self) -> None:
         if self._capture is not None and self._capture.isOpened():

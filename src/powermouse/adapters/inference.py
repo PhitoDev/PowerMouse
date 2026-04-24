@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 import queue
 import threading
+from contextlib import ExitStack
+from importlib.resources import as_file, files
 from typing import Dict, Optional, Tuple
 
 import cv2
@@ -23,6 +25,10 @@ _NOSE_LANDMARK_INDEX = 1
 
 # Environment variable pointing at the .task model file.
 _MODEL_ENV_VAR = "POWERMOUSE_FACE_LANDMARKER_MODEL"
+
+# Bundled model resource (shipped inside the app bundle via importlib.resources).
+_BUNDLED_MODEL_PACKAGE = "powermouse.resources"
+_BUNDLED_MODEL_NAME = "face_landmarker.task"
 
 # Blendshape category name -> domain GestureEvent (see docs/architecture.md §4.2).
 _BLENDSHAPE_TO_GESTURE: Dict[str, GestureEvent] = {
@@ -170,15 +176,8 @@ class MediaPipeInferenceController(InferenceController):
         self._screen_size = screen_size
         self._num_faces = num_faces
 
-        resolved_model = model_path or os.environ.get(_MODEL_ENV_VAR)
-        if not resolved_model:
-            raise RuntimeError(
-                f"FaceLandmarker model path not provided; pass model_path or set "
-                f"{_MODEL_ENV_VAR} to the .task file location."
-            )
-        if not os.path.isfile(resolved_model):
-            raise FileNotFoundError(f"FaceLandmarker model file not found: {resolved_model}")
-        self._model_path = resolved_model
+        self._resource_stack = ExitStack()
+        self._model_path = self._resolve_model_path(model_path)
 
         self._smoothness = _SmoothnessEngine(settings, screen_size)
         self._gates: Dict[str, _HysteresisGate] = {
@@ -194,6 +193,40 @@ class MediaPipeInferenceController(InferenceController):
         self._gesture_queue: "queue.Queue[GestureEvent]" = queue.Queue()
 
         self._landmarker = None  # type: ignore[assignment]
+
+    # -- model resolution ---------------------------------------------
+
+    def _resolve_model_path(self, explicit: Optional[str]) -> str:
+        """Find the model file. Precedence: explicit arg > env var > bundled resource."""
+        if explicit:
+            if not os.path.isfile(explicit):
+                raise FileNotFoundError(f"FaceLandmarker model file not found: {explicit}")
+            return explicit
+
+        env_value = os.environ.get(_MODEL_ENV_VAR)
+        if env_value:
+            if not os.path.isfile(env_value):
+                raise FileNotFoundError(f"FaceLandmarker model file not found: {env_value}")
+            return env_value
+
+        # Fall back to the bundled resource (development and packaged builds).
+        try:
+            resource = files(_BUNDLED_MODEL_PACKAGE).joinpath(_BUNDLED_MODEL_NAME)
+        except (FileNotFoundError, ModuleNotFoundError) as exc:
+            raise RuntimeError(
+                f"FaceLandmarker model not found. Pass model_path, set "
+                f"{_MODEL_ENV_VAR}, or ship {_BUNDLED_MODEL_NAME} in the "
+                f"{_BUNDLED_MODEL_PACKAGE} package."
+            ) from exc
+        # as_file() yields a real filesystem path; ExitStack keeps the context
+        # alive for the lifetime of this controller so MediaPipe can open it.
+        path = self._resource_stack.enter_context(as_file(resource))
+        if not path.is_file():
+            raise RuntimeError(
+                f"FaceLandmarker model resource {_BUNDLED_MODEL_NAME!r} not found "
+                f"in package {_BUNDLED_MODEL_PACKAGE!r}."
+            )
+        return str(path)
 
     # -- lifecycle -----------------------------------------------------
 
@@ -215,6 +248,7 @@ class MediaPipeInferenceController(InferenceController):
         if self._landmarker is not None:
             self._landmarker.close()
             self._landmarker = None
+        self._resource_stack.close()
 
     def __enter__(self) -> "MediaPipeInferenceController":
         self.start()

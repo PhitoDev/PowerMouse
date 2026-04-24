@@ -11,7 +11,7 @@ from typing import List, Optional
 
 import dearpygui.dearpygui as dpg
 
-from powermouse.adapters.camera import OpenCVCameraController
+from powermouse.adapters.camera import probe_cameras
 from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.domain.models.camera import Camera, FaceTrackerSettings
 from powermouse.domain.models.mouse import ClickInterface
@@ -126,7 +126,7 @@ class OnboardingDialog:
         # seconds tops. Doing it inline keeps the implementation simple; the
         # user sees the status text until it returns.
         try:
-            cameras = OpenCVCameraController.list_cameras()
+            cameras = probe_cameras()
         except Exception as exc:  # noqa: BLE001
             self._set_status(f"Camera detection failed: {exc}")
             return

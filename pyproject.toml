@@ -1,26 +1,67 @@
 [project]
 name = "PowerMouse"
 version = "0.0.1"
-description = ""
+description = "Hands-free mouse control using face tracking"
 authors = [
     { name = "Ralph Dugue", email = "rdugue1@gmail.com" }
 ]
 readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">= 3.12, < 3.13"
+dependencies = [
+    "sqlalchemy >= 2.0.49",
+    "opencv-python >= 4.13.0.92",
+    "dearpygui >= 2.3",
+    "mediapipe >= 0.10.33",
+    "mouse >= 0.7.1",
+    "numpy >= 2.4.4",
+    "screeninfo >= 0.8.1",
+    "platformdirs >= 4.3",
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
-sqlalchemy = "^2.0.49"
-opencv-python = "^4.13.0.92"
-dearpygui = "^2.3"
-mediapipe = "^0.10.33"
-mouse = "^0.7.1"
-numpy = "^2.4.4"
-screeninfo = "^0.8.1"
-
+[tool.poetry.scripts]
+powermouse = "powermouse.main:main"
 
 [dependency-groups]
-dev = ["pytest (>=9.0.3,<10.0.0)"]
+dev = ["pytest (>=9.0.3,<10.0.0)", "briefcase (>=0.4.1,<0.5.0)"]
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+# ---------------------------------------------------------------------------
+# Briefcase configuration
+# ---------------------------------------------------------------------------
+
+[tool.briefcase]
+project_name = "PowerMouse"
+bundle = "dev.phito"
+url = "https://github.com/PhitoDev/PowerMouse"
+license.text = "Apache-2.0"
+author = "Ralph Dugue"
+author_email = "rdugue1@gmail.com"
+
+[tool.briefcase.app.powermouse]
+formal_name = "PowerMouse"
+description = "Hands-free mouse control using face tracking"
+long_description = """PowerMouse is an accessibility-first desktop application that
+provides hands-free mouse control via low-latency face tracking. It uses
+OpenCV for video capture, MediaPipe for facial landmark detection, and
+direct OS input APIs for minimal input latency."""
+sources = ["src/powermouse"]
+
+# Cross-platform permissions (mapped per-platform by Briefcase).
+permission.camera = "PowerMouse needs webcam access to track your face for hands-free cursor control."
+
+[tool.briefcase.app.powermouse.macOS]
+min_os_version = "11.0"
+universal_build = true
+
+[tool.briefcase.app.powermouse.windows]
+
+[tool.briefcase.app.powermouse.linux]
+# Linux system package backend. Override per-distro as needed.
+
+[tool.briefcase.app.powermouse.linux.system.debian]
+system_requires = []
+system_runtime_requires = []
