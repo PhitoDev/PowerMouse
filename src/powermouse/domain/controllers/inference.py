@@ -13,6 +13,12 @@ class InferenceController:
     ):
         pass
 
+    def start(self) -> None:
+        pass
+
+    def stop(self) -> None:
+        pass
+
     def process_frame(self, frame_bgr: np.ndarray, timestamp_ms: int) -> None:
         raise NotImplementedError
 

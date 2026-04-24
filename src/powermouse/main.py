@@ -9,6 +9,7 @@ from powermouse.adapters.inference import MediaPipeInferenceController
 from powermouse.adapters.mouse import SystemMouseController
 from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.widgets.camera import CameraWidget
+from powermouse.widgets.onboarding import run_onboarding
 from powermouse.widgets.profiles import ProfilesWidget
 from powermouse.widgets.settings import (
     ClickingSettingsWidget,
@@ -16,6 +17,7 @@ from powermouse.widgets.settings import (
     TrackingSettingsWidget,
 )
 
+from .domain.usecases.gesture_mapping import GestureToMouseTranslator
 from .domain.usecases.track_face import tracking_step
 
 
@@ -23,12 +25,20 @@ def main() -> None:
     monitor = get_monitors()[0]
     profile_manager = SqlAlchemyProfileManager()
 
+    # First-run onboarding when no profiles exist.
+    if not profile_manager.list_profiles():
+        run_onboarding(profile_manager)
+
     try:
         active_profile = profile_manager.get_active_profile()
-    except LookupError as exc:
-        raise SystemExit(
-            "No active profile found. Create one via onboarding before running the app."
-        ) from exc
+    except LookupError:
+        # Profiles exist but none is active; pick the first one and activate it.
+        profiles = profile_manager.list_profiles()
+        if not profiles:
+            raise SystemExit("No profiles available after onboarding; exiting.")
+        first = profiles[0]
+        first.is_active = True
+        active_profile = profile_manager.update_profile(first.profile_id, first)
 
     camera_controller = OpenCVCameraController(
         camera=active_profile.face_tracker_settings.camera,
@@ -38,12 +48,22 @@ def main() -> None:
         screen_size=(monitor.width, monitor.height),
     )
     mouse_controller = SystemMouseController()
+    gesture_translator = GestureToMouseTranslator()
 
     camera_controller.start_stream()
     inference_controller.start()
 
     # Widgets ----------------------------------------------------------
-    camera_widget = CameraWidget(panel_width=640)
+    camera_widget = CameraWidget(
+        camera_controller=camera_controller,
+        inference_controller=inference_controller,
+        profile_manager=profile_manager,
+        cameras=camera_controller.list_cameras(),
+        current_camera=active_profile.face_tracker_settings.camera,
+        panel_width=640,
+        image_width=624,
+        image_height=352,
+    )
     tracking_widget = TrackingSettingsWidget()
     clicking_widget = ClickingSettingsWidget()
     settings_widget = SettingsWidget(
@@ -80,6 +100,7 @@ def main() -> None:
                 mouse_controller=mouse_controller,
                 inference_controller=inference_controller,
                 camera_controller=camera_controller,
+                gesture_translator=gesture_translator,
             )
             dpg.render_dearpygui_frame()
     finally:

@@ -4,7 +4,7 @@
 ### **Description** 
 PowerMouse is a versatile hands-free mouse that uses face detection technology to enable a user to control the mouse cursor on their computer. The user will have the option to execute different mouse clicking functions using face gestures, dwell clicking, voice clicking, or any combination of the three.
 ### **Target Audience**
-The target audience is people 
+The target audience is people with physical disabilities that make using a standard mouse difficult.
 
 ### **Key Features** 
 | **Feature** | **Description** |

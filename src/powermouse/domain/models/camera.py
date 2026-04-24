@@ -21,10 +21,10 @@ class Camera:
 @dataclass
 class FaceTrackerSettings:
     camera: Camera
-    speed: float
-    acceleration: float
-    sensitivity: tuple[float, float]
-    smoothness: float
+    speed: float = 1.0
+    acceleration: float = 1.5
+    sensitivity: tuple[float, float] = (1.0, 1.0)
+    smoothness: float = 0.5
     # Signal-processing thresholds (see docs/architecture.md §5).
     deadzone_radius_px: int = 5
     active_area_x: tuple[float, float] = (0.4, 0.6)
