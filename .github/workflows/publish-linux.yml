@@ -23,6 +23,8 @@ jobs:
                   poetry run briefcase build
                   poetry run briefcase package
             - name: Tag release
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
                   VERSION=$(poetry version --short)
                   git config user.name "github-actions[bot]"
