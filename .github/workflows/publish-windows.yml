@@ -22,16 +22,9 @@ jobs:
                   poetry run briefcase create
                   poetry run briefcase build
                   poetry run briefcase package
-            - name: Upload Artifacts
-              uses: actions/upload-artifact@v7
-              with:
-                  name: PowerMouse
-                  path: dist/
-                  if-no-files-found: error
-            - name: Tag release
+            - name: Release
               run: |
                   $VERSION = (&poetry version --short).Trim()
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git tag "Windows-$VERSION"
-                  git push origin "Windows-$VERSION"
+                  gh release create "Windows-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
