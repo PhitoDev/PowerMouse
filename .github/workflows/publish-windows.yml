@@ -33,5 +33,5 @@ jobs:
                   $VERSION = (&poetry version --short).Trim()
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git tag "Windows $VERSION"
-                  git push origin "Windows $VERSION"
+                  git tag "Windows-$VERSION"
+                  git push origin "Windows-$VERSION"

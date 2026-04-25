@@ -33,5 +33,5 @@ jobs:
                   VERSION=$(poetry version --short)
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  git tag "Linux v$VERSION"
-                  git push origin "Linux v$VERSION"
+                  git tag "Linux-v$VERSION"
+                  git push origin "Linux-v$VERSION"
