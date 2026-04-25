@@ -37,7 +37,7 @@ class CameraWidget:
         self._camera_controller = camera_controller
         self._inference_controller = inference_controller
         self._profile_manager = profile_manager
-        self._cameras = {cam.name: cam for cam in cameras}
+        self._cameras = cameras
         self._current_camera = current_camera
 
     def build(self, parent: str) -> None:
@@ -55,10 +55,8 @@ class CameraWidget:
         ):
             dpg.add_combo(
                 label="Current Camera",
-                items=[cam.name for cam in self._cameras.values()],
-                current_index=list(self._cameras.keys()).index(
-                    self._current_camera.name
-                ),
+                items=[cam.name for cam in self._cameras],
+                current_index=int(self._current_camera.id),
                 tag=self.CAMERA_TAG,
                 width=self._panel_w,
                 callback=lambda: self._update_camera(

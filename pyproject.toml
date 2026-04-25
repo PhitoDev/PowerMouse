@@ -17,6 +17,7 @@ dependencies = [
     "numpy >= 2.4.4",
     "screeninfo >= 0.8.1",
     "platformdirs >= 4.3",
+    "pygrabber >= 0.2"
 ]
 
 [tool.poetry.scripts]

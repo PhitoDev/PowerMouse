@@ -5,18 +5,19 @@ Per requirements §2 Onboarding: prompts the user to create a profile with a
 name + camera selection, then persists it via the profile manager. Runs in its
 own DPG context so the main app can start fresh once a profile exists.
 """
+
 from __future__ import annotations
 
+import os
 from typing import List, Optional
 
 import dearpygui.dearpygui as dpg
 
-from powermouse.adapters.camera import probe_cameras
+from powermouse.adapters.devices import DeviceManager
 from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.domain.models.camera import Camera, FaceTrackerSettings
 from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.profile import Profile
-
 
 _GESTURE_CHEAT_SHEET = [
     ("Wink left eye", "Left click"),
@@ -26,6 +27,11 @@ _GESTURE_CHEAT_SHEET = [
     ("Raise eyebrows", "Middle click"),
     ("Open jaw", "Toggle hold left click (drag)"),
 ]
+
+FONT_PATH = os.path.join(
+    os.path.dirname(__file__), "../resources/JetBrainsMonoNLNerdFontMono-Bold.ttf"
+)
+assert os.path.exists(FONT_PATH), f"Font file not found: {FONT_PATH}"
 
 
 class OnboardingDialog:
@@ -38,8 +44,11 @@ class OnboardingDialog:
     CREATE_TAG = "onboarding_create"
     RETRY_TAG = "onboarding_retry"
 
-    def __init__(self, profile_manager: SqlAlchemyProfileManager):
+    def __init__(
+        self, profile_manager: SqlAlchemyProfileManager, device_manager: DeviceManager
+    ):
         self._manager = profile_manager
+        self._device_manager = device_manager
         self._cameras: List[Camera] = []
         self._created: Optional[Profile] = None
 
@@ -71,6 +80,10 @@ class OnboardingDialog:
     # -- DPG tree ------------------------------------------------------
 
     def _build(self) -> None:
+        with dpg.font_registry():
+            default_font = dpg.add_font(FONT_PATH, 20)
+        dpg.bind_font(default_font)
+
         with dpg.window(tag=self.WINDOW_TAG, no_scrollbar=False, no_title_bar=True):
             dpg.add_text("Welcome to PowerMouse", color=(200, 220, 255))
             dpg.add_text(
@@ -90,13 +103,18 @@ class OnboardingDialog:
                 width=-1,
                 default_value="Detecting cameras...",
             )
-            dpg.add_button(label="Retry camera detection", tag=self.RETRY_TAG,
-                           callback=self._refresh_cameras)
+            dpg.add_button(
+                label="Retry camera detection",
+                tag=self.RETRY_TAG,
+                callback=self._refresh_cameras,
+            )
 
             dpg.add_spacer(height=10)
             dpg.add_separator()
             dpg.add_text("Gesture Clicking (always on for now)", color=(200, 220, 255))
-            dpg.add_text("These facial gestures trigger clicks once tracking starts:", wrap=520)
+            dpg.add_text(
+                "These facial gestures trigger clicks once tracking starts:", wrap=520
+            )
             with dpg.table(header_row=True, policy=dpg.mvTable_SizingStretchProp):
                 dpg.add_table_column(label="Gesture")
                 dpg.add_table_column(label="Action")
@@ -122,11 +140,9 @@ class OnboardingDialog:
     def _refresh_cameras(self, *_):
         self._set_status("Detecting cameras...")
         dpg.configure_item(self.CREATE_TAG, enabled=False)
-        # Synchronous probe. list_cameras() opens each index briefly; a few
-        # seconds tops. Doing it inline keeps the implementation simple; the
-        # user sees the status text until it returns.
+
         try:
-            cameras = probe_cameras()
+            cameras = self._device_manager.get_devices()
         except Exception as exc:  # noqa: BLE001
             self._set_status(f"Camera detection failed: {exc}")
             return
@@ -196,6 +212,8 @@ class OnboardingDialog:
             dpg.set_value(self.STATUS_TAG, message)
 
 
-def run_onboarding(profile_manager: SqlAlchemyProfileManager) -> Profile:
+def run_onboarding(
+    profile_manager: SqlAlchemyProfileManager, device_manager: DeviceManager
+) -> Profile:
     """Convenience helper: run the dialog once and return the created profile."""
-    return OnboardingDialog(profile_manager).run()
+    return OnboardingDialog(profile_manager, device_manager).run()
