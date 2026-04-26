@@ -56,8 +56,8 @@ class CameraWidget:
             dpg.add_combo(
                 label="Current Camera",
                 items=[cam.name for cam in self._cameras],
-                current_index=int(self._current_camera.id),
                 tag=self.CAMERA_TAG,
+                default_value=self._current_camera.name,
                 width=self._panel_w,
                 callback=lambda: self._update_camera(
                     self._cameras[dpg.get_value(self.CAMERA_TAG)]

@@ -10,3 +10,6 @@ __pycache__/
 
 # Ignore virtual environment
 .venv/
+
+# Ignore Zed editor configuration
+.zed/

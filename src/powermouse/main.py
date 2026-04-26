@@ -99,7 +99,7 @@ def main() -> None:
             camera_widget.build(parent=root)
             settings_widget.build(parent=root)
 
-    dpg.show_font_manager()
+    # dpg.show_font_manager()
     dpg.set_primary_window("root", True)
 
     # Initial selection triggers settings.bind(), which populates the tabs.
