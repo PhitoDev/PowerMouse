@@ -15,7 +15,6 @@ from powermouse.domain.controllers.inference import InferenceController
 from powermouse.domain.models.camera import FaceTrackerSettings
 from powermouse.domain.models.gesture import GestureEvent
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -84,47 +83,23 @@ class _SmoothnessEngine:
         return max(0.05, min(1.0, 1.0 - s))
 
     def update(self, target_x: float, target_y: float) -> Tuple[int, int]:
-        cx = self._screen_w / 2.0
-        cy = self._screen_h / 2.0
-        dx = target_x - cx
-        dy = target_y - cy
-        radius = float(np.hypot(dx, dy))
+        # Calculate distance from the CURRENT smoothed position, not screen center
+        dx = target_x - self._smoothed_x
+        dy = target_y - self._smoothed_y
+        distance = np.hypot(dx, dy)
 
-        deadzone = float(self._settings.deadzone_radius_px)
-        if radius <= deadzone:
-            # Inside deadzone: hold last smoothed position.
+        # Deadzone check
+        if distance <= self._settings.deadzone_radius_px:
             return int(round(self._smoothed_x)), int(round(self._smoothed_y))
 
-        # Normalize direction vector.
-        ux = dx / radius
-        uy = dy / radius
-
-        # Radial offset past the deadzone, normalized by half the screen diagonal.
-        max_offset = float(np.hypot(cx, cy))
-        offset_past_deadzone = radius - deadzone
-        max_past_deadzone = max(1.0, max_offset - deadzone)
-        normalized = min(1.0, offset_past_deadzone / max_past_deadzone)
-
-        # Non-linear acceleration curve: v_out = v_in ^ n.
-        exponent = max(0.1, float(self._settings.acceleration))
-        accelerated = normalized ** exponent
-
-        # Apply per-axis sensitivity and global speed gain.
-        sx, sy = self._settings.sensitivity
-        speed = max(0.0, float(self._settings.speed))
-        gain = accelerated * speed * max_past_deadzone
-
-        adj_x = cx + ux * gain * float(sx)
-        adj_y = cy + uy * gain * float(sy)
-
-        # Clamp to screen bounds.
-        adj_x = max(0.0, min(float(self._screen_w - 1), adj_x))
-        adj_y = max(0.0, min(float(self._screen_h - 1), adj_y))
-
-        # EMA smoothing.
+        # Simple EMA Smoothing
         a = self.alpha
-        self._smoothed_x = a * adj_x + (1.0 - a) * self._smoothed_x
-        self._smoothed_y = a * adj_y + (1.0 - a) * self._smoothed_y
+        self._smoothed_x = (a * target_x) + ((1.0 - a) * self._smoothed_x)
+        self._smoothed_y = (a * target_y) + ((1.0 - a) * self._smoothed_y)
+
+        # Clamp to actual screen bounds
+        self._smoothed_x = max(0.0, min(float(self._screen_w - 1), self._smoothed_x))
+        self._smoothed_y = max(0.0, min(float(self._screen_h - 1), self._smoothed_y))
 
         return int(round(self._smoothed_x)), int(round(self._smoothed_y))
 
@@ -189,7 +164,10 @@ class MediaPipeInferenceController(InferenceController):
         }
 
         self._lock = threading.Lock()
-        self._latest_cursor: Tuple[int, int] = (screen_size[0] // 2, screen_size[1] // 2)
+        self._latest_cursor: Tuple[int, int] = (
+            screen_size[0] // 2,
+            screen_size[1] // 2,
+        )
         self._gesture_queue: "queue.Queue[GestureEvent]" = queue.Queue()
 
         self._landmarker = None  # type: ignore[assignment]
@@ -200,13 +178,17 @@ class MediaPipeInferenceController(InferenceController):
         """Find the model file. Precedence: explicit arg > env var > bundled resource."""
         if explicit:
             if not os.path.isfile(explicit):
-                raise FileNotFoundError(f"FaceLandmarker model file not found: {explicit}")
+                raise FileNotFoundError(
+                    f"FaceLandmarker model file not found: {explicit}"
+                )
             return explicit
 
         env_value = os.environ.get(_MODEL_ENV_VAR)
         if env_value:
             if not os.path.isfile(env_value):
-                raise FileNotFoundError(f"FaceLandmarker model file not found: {env_value}")
+                raise FileNotFoundError(
+                    f"FaceLandmarker model file not found: {env_value}"
+                )
             return env_value
 
         # Fall back to the bundled resource (development and packaged builds).

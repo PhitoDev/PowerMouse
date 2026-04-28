@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.3
+
+- Simplified smoothing engine logic to improve range of tracking.
+- Moved tracking loop for main app logic to a background thread, so that tracking continues when the app is backgrounded.
+
 ## v0.0.2
 
 - Updated fonts for readability.

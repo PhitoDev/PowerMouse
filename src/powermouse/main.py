@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import os
+import threading
+import time
 
 import dearpygui.dearpygui as dpg
 from screeninfo import get_monitors
@@ -108,15 +110,24 @@ def main() -> None:
     dpg.create_viewport(title="PowerMouse", width=1280, height=720)
     dpg.setup_dearpygui()
     dpg.show_viewport()
+
+    # Create a background thread for tracking
+    def background_tracking_loop():
+        tracking_step(
+            frame_processor=camera_widget.update_frame,
+            mouse_controller=mouse_controller,
+            inference_controller=inference_controller,
+            camera_controller=camera_controller,
+            gesture_translator=gesture_translator,
+        )
+
+        time.sleep(0.005)
+
+    tracking_thread = threading.Thread(target=background_tracking_loop, daemon=True)
+    tracking_thread.start()
+
     try:
         while dpg.is_dearpygui_running():
-            tracking_step(
-                frame_processor=camera_widget.update_frame,
-                mouse_controller=mouse_controller,
-                inference_controller=inference_controller,
-                camera_controller=camera_controller,
-                gesture_translator=gesture_translator,
-            )
             dpg.render_dearpygui_frame()
     finally:
         inference_controller.stop()
