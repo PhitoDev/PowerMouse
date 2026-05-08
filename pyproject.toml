@@ -1,9 +1,9 @@
 [project]
 name = "PowerMouse"
-version = "0.0.3"
+version = "0.0.4"
 description = "Hands-free mouse control using face tracking"
 authors = [
-    { name = "Ralph Dugue", email = "rdugue1@gmail.com" }
+    { name = "Ralph Dugue", email = "ralph@phito.dev" }
 ]
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -40,7 +40,7 @@ bundle = "dev.phito"
 url = "https://github.com/PhitoDev/PowerMouse"
 license.text = "Apache-2.0"
 author = "Ralph Dugue"
-author_email = "rdugue1@gmail.com"
+author_email = "ralph@phito.dev"
 
 [tool.briefcase.app.powermouse]
 formal_name = "PowerMouse"

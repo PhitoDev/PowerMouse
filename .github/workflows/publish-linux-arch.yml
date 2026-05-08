@@ -1,4 +1,4 @@
-name: Publish Linux
+name: Publish Linux (Arch)
 on:
     push:
         branches:
@@ -19,9 +19,9 @@ jobs:
               run: poetry install
             - name: Build Artifacts
               run: |
-                  poetry run briefcase create
-                  poetry run briefcase build
-                  poetry run briefcase package
+                  poetry run briefcase create linux system --target archlinux:latest
+                  poetry run briefcase build linux system --target archlinux:latest
+                  poetry run briefcase package linux system --target archlinux:latest
             - name: Tag release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -29,4 +29,4 @@ jobs:
                   VERSION=$(poetry version --short)
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  gh release create "Linux-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  gh release create "Arch-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
