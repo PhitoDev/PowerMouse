@@ -1,7 +1,6 @@
 # pyright: reportGeneralTypeIssues=false, reportArgumentType=false
 from __future__ import annotations
 
-import os
 import threading
 import time
 
@@ -13,6 +12,7 @@ from powermouse.adapters.devices import SystemDeviceManager
 from powermouse.adapters.inference import MediaPipeInferenceController
 from powermouse.adapters.mouse import SystemMouseController
 from powermouse.adapters.profile import SqlAlchemyProfileManager
+from powermouse.theme import setup_theme
 from powermouse.widgets.camera import CameraWidget
 from powermouse.widgets.onboarding import run_onboarding
 from powermouse.widgets.profiles import ProfilesWidget
@@ -24,11 +24,6 @@ from powermouse.widgets.settings import (
 
 from .domain.usecases.gesture_mapping import GestureToMouseTranslator
 from .domain.usecases.track_face import tracking_step
-
-FONT_PATH = os.path.join(
-    os.path.dirname(__file__), "resources/JetBrainsMonoNLNerdFontMono-Bold.ttf"
-)
-assert os.path.exists(FONT_PATH), f"Font file not found: {FONT_PATH}"
 
 
 def main() -> None:
@@ -89,11 +84,7 @@ def main() -> None:
 
     # DPG setup --------------------------------------------------------
     dpg.create_context()
-
-    with dpg.font_registry():
-        default_font = dpg.add_font(FONT_PATH, 20)
-
-    dpg.bind_font(default_font)
+    setup_theme()
 
     with dpg.window(tag="root", no_scrollbar=True) as root:
         with dpg.group(horizontal=True):

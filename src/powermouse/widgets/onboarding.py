@@ -8,7 +8,6 @@ own DPG context so the main app can start fresh once a profile exists.
 
 from __future__ import annotations
 
-import os
 from typing import List, Optional
 
 import dearpygui.dearpygui as dpg
@@ -18,6 +17,7 @@ from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.domain.models.camera import Camera, FaceTrackerSettings
 from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.profile import Profile
+from powermouse.theme import LAKERS_PURPLE, STATUS_RED, setup_theme
 
 _GESTURE_CHEAT_SHEET = [
     ("Wink left eye", "Left click"),
@@ -27,11 +27,6 @@ _GESTURE_CHEAT_SHEET = [
     ("Raise eyebrows", "Middle click"),
     ("Open jaw", "Toggle hold left click (drag)"),
 ]
-
-FONT_PATH = os.path.join(
-    os.path.dirname(__file__), "../resources/JetBrainsMonoNLNerdFontMono-Bold.ttf"
-)
-assert os.path.exists(FONT_PATH), f"Font file not found: {FONT_PATH}"
 
 
 class OnboardingDialog:
@@ -61,6 +56,7 @@ class OnboardingDialog:
         try:
             dpg.create_viewport(title="PowerMouse Setup", width=560, height=620)
             dpg.setup_dearpygui()
+            setup_theme()
             self._build()
             dpg.set_primary_window(self.WINDOW_TAG, True)
             dpg.show_viewport()
@@ -80,12 +76,8 @@ class OnboardingDialog:
     # -- DPG tree ------------------------------------------------------
 
     def _build(self) -> None:
-        with dpg.font_registry():
-            default_font = dpg.add_font(FONT_PATH, 20)
-        dpg.bind_font(default_font)
-
         with dpg.window(tag=self.WINDOW_TAG, no_scrollbar=False, no_title_bar=True):
-            dpg.add_text("Welcome to PowerMouse", color=(200, 220, 255))
+            dpg.add_text("Welcome to PowerMouse", color=LAKERS_PURPLE)
             dpg.add_text(
                 "Let's set up your first profile. You can create more later from the main window.",
                 wrap=520,
@@ -111,7 +103,7 @@ class OnboardingDialog:
 
             dpg.add_spacer(height=10)
             dpg.add_separator()
-            dpg.add_text("Gesture Clicking (always on for now)", color=(200, 220, 255))
+            dpg.add_text("Gesture Clicking (always on for now)", color=LAKERS_PURPLE)
             dpg.add_text(
                 "These facial gestures trigger clicks once tracking starts:", wrap=520
             )
@@ -125,7 +117,7 @@ class OnboardingDialog:
 
             dpg.add_spacer(height=10)
             dpg.add_separator()
-            dpg.add_text("", tag=self.STATUS_TAG, color=(255, 160, 160))
+            dpg.add_text("", tag=self.STATUS_TAG, color=STATUS_RED)
             with dpg.group(horizontal=True):
                 dpg.add_button(
                     label="Create Profile",
