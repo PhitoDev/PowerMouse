@@ -54,7 +54,7 @@ class OnboardingDialog:
         user closes the viewport without completing."""
         dpg.create_context()
         try:
-            dpg.create_viewport(title="PowerMouse Setup", width=560, height=620)
+            dpg.create_viewport(title="PowerMouse Setup", width=560, height=760)
             dpg.setup_dearpygui()
             setup_theme()
             self._build()

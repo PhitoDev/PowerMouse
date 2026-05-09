@@ -20,7 +20,7 @@ FONT_PATH = os.path.join(
 )
 assert os.path.exists(FONT_PATH), f"Font file not found: {FONT_PATH}"
 
-FONT_SIZE = 20
+FONT_SIZE = 25
 
 # -- Lakers palette ------------------------------------------------------
 

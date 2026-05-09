@@ -4,7 +4,7 @@ import platform
 
 import cv2
 import numpy as np
-from pygrabber.dshow_graph import FilterGraph
+from cv2_enumerate_cameras import enumerate_cameras
 
 from powermouse.domain.controllers.devices import DeviceManager
 from powermouse.domain.models.camera import Camera
@@ -17,15 +17,8 @@ class SystemDeviceManager(DeviceManager):
         self.os = platform.system()
 
     def get_devices(self) -> list[Camera]:
-        devices = {}
+        devices = self._enumerate_devices()
         cameras = []
-        match self.os:
-            case "Linux":
-                devices = self._get_devices_linux()
-            case "Windows":
-                devices = self._get_devices_windows()
-            case _:
-                raise NotImplementedError(f"Unsupported OS: {self.os}")
 
         for i, name in devices.items():
             cap = cv2.VideoCapture(i)
@@ -45,25 +38,11 @@ class SystemDeviceManager(DeviceManager):
             )
         return cameras
 
-    def _get_devices_linux(self) -> dict[int, str]:
-        cameras = {}
-        # Find all video devices
-        device_paths = glob.glob("/sys/class/video4linux/video*")
+    def _enumerate_devices():
+        camera_dict = {}
 
-        for path in device_paths:
-            # The index is the number at the end of 'video0', 'video1', etc.
-            index = int(os.path.basename(path).replace("video", ""))
+        for info in enumerate_cameras():
+            if info.name not in camera_dict.values():
+                camera_dict[info.name] = info.name
 
-            # Read the human-readable name from the 'name' file
-            with open(os.path.join(path, "name"), "r") as f:
-                name = f.read().strip()
-
-            cameras[index] = name
-            print(f"OpenCV Index {index}: {name}")
-
-        return cameras
-
-    def _get_devices_windows(self) -> dict[int, str]:
-        graph = FilterGraph()
-        devices = graph.get_input_devices()
-        return {i: device for i, device in enumerate(devices)}
+        return camera_dict
