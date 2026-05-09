@@ -13,20 +13,21 @@ jobs:
         steps:
             - name: Checkout
               uses: actions/checkout@v4
-            - name: Install Poetry
-              run: pipx install poetry
-            - name: Install Dependencies
-              run: poetry install
+            - name: Install UV
+              run: curl -LsSf https://astral.sh/uv/install.sh | sh
+            - name: Install Python
+              run: uv python install 3.14
             - name: Build Artifacts
               run: |
-                  poetry run briefcase create linux system --target archlinux:latest
-                  poetry run briefcase build linux system --target archlinux:latest
-                  poetry run briefcase package linux system --target archlinux:latest
+                  uv build
+                  uv run briefcase create linux system --target archlinux:latest
+                  uv run briefcase build linux system --target archlinux:latest
+                  uv run briefcase package linux system --target archlinux:latest
             - name: Tag release
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  VERSION=$(poetry version --short)
+                  VERSION=$(uv version --short)
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
                   gh release create "Arch-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
