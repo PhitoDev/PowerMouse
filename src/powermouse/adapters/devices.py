@@ -38,11 +38,11 @@ class SystemDeviceManager(DeviceManager):
             )
         return cameras
 
-    def _enumerate_devices():
+    def _enumerate_devices(self) -> dict[int, str]:
         camera_dict = {}
 
         for info in enumerate_cameras():
             if info.name not in camera_dict.values():
-                camera_dict[info.name] = info.name
+                camera_dict[info.index] = info.name
 
         return camera_dict
