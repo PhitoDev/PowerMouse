@@ -6,7 +6,8 @@ authors = [
     { name = "Ralph Dugue", email = "ralph@phito.dev" }
 ]
 readme = "README.md"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">= 3.12, < 4.0.0"
 dependencies = [
     "sqlalchemy >= 2.0.49",
@@ -38,7 +39,6 @@ build-backend = "uv_build"
 project_name = "PowerMouse"
 bundle = "dev.phito"
 url = "https://github.com/PhitoDev/PowerMouse"
-license.text = "Apache-2.0"
 author = "Ralph Dugue"
 author_email = "ralph@phito.dev"
 
