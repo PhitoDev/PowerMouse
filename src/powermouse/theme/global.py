@@ -16,20 +16,20 @@ import dearpygui.dearpygui as dpg
 # -- assets --------------------------------------------------------------
 
 FONT_PATH = os.path.join(
-    os.path.dirname(__file__), "../resources/JetBrainsMonoNLNerdFontMono-Bold.ttf"
+    os.path.dirname(__file__), "../resources/JetBrainsMonoNerdFont-ExtraBold.ttf"
 )
 assert os.path.exists(FONT_PATH), f"Font file not found: {FONT_PATH}"
 
-FONT_SIZE = 20
+FONT_SIZE = 25
 
 # -- Lakers palette ------------------------------------------------------
 
-LAKERS_PURPLE = (85, 37, 131, 255)       # #552583
-LAKERS_GOLD = (253, 185, 39, 255)        # #FDB927
-LAKERS_GOLD_SOFT = (253, 185, 39, 160)   # translucent for hovers
-OFF_WHITE = (250, 247, 242, 255)         # #FAF7F2
-OFF_WHITE_DEEP = (238, 233, 224, 255)    # slightly darker for frame bgs
-STATUS_RED = (170, 40, 40, 255)          # readable on off-white
+LAKERS_PURPLE = (85, 37, 131, 255)  # #552583
+LAKERS_GOLD = (253, 185, 39, 255)  # #FDB927
+LAKERS_GOLD_SOFT = (253, 185, 39, 160)  # translucent for hovers
+OFF_WHITE = (250, 247, 242, 255)  # #FAF7F2
+OFF_WHITE_DEEP = (238, 233, 224, 255)  # slightly darker for frame bgs
+STATUS_RED = (170, 40, 40, 255)  # readable on off-white
 
 # -- module state --------------------------------------------------------
 

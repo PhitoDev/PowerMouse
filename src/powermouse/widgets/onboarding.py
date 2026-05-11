@@ -33,6 +33,8 @@ class OnboardingDialog:
     """Self-contained first-run dialog. Owns its DPG context lifecycle."""
 
     WINDOW_TAG = "onboarding_window"
+    FORM_TAG = "Profile Form"
+    GESTURE_SHEET_TAG = "Gesture Sheet"
     NAME_TAG = "onboarding_name"
     CAMERA_TAG = "onboarding_camera"
     STATUS_TAG = "onboarding_status"
@@ -54,7 +56,7 @@ class OnboardingDialog:
         user closes the viewport without completing."""
         dpg.create_context()
         try:
-            dpg.create_viewport(title="PowerMouse Setup", width=560, height=620)
+            dpg.create_viewport(title="PowerMouse Setup", width=760, height=560)
             dpg.setup_dearpygui()
             setup_theme()
             self._build()
@@ -84,36 +86,48 @@ class OnboardingDialog:
             )
             dpg.add_separator()
 
-            dpg.add_text("Profile Name")
-            dpg.add_input_text(tag=self.NAME_TAG, hint="e.g. Default", width=-1)
+            with dpg.group(horizontal=True):
+                with dpg.group(label=self.FORM_TAG):
+                    dpg.add_text("Profile Name")
+                    dpg.add_input_text(
+                        tag=self.NAME_TAG, hint="e.g. Default", width=400
+                    )
 
-            dpg.add_spacer(height=6)
-            dpg.add_text("Camera")
-            dpg.add_combo(
-                tag=self.CAMERA_TAG,
-                items=[],
-                width=-1,
-                default_value="Detecting cameras...",
-            )
-            dpg.add_button(
-                label="Retry camera detection",
-                tag=self.RETRY_TAG,
-                callback=self._refresh_cameras,
-            )
+                    dpg.add_spacer(height=6)
+                    dpg.add_text("Camera")
+                    dpg.add_combo(
+                        tag=self.CAMERA_TAG,
+                        items=[],
+                        width=400,
+                        default_value="Detecting cameras...",
+                    )
+                    dpg.add_button(
+                        label="Retry camera detection",
+                        tag=self.RETRY_TAG,
+                        callback=self._refresh_cameras,
+                    )
 
-            dpg.add_spacer(height=10)
-            dpg.add_separator()
-            dpg.add_text("Gesture Clicking (always on for now)", color=LAKERS_PURPLE)
-            dpg.add_text(
-                "These facial gestures trigger clicks once tracking starts:", wrap=520
-            )
-            with dpg.table(header_row=True, policy=dpg.mvTable_SizingStretchProp):
-                dpg.add_table_column(label="Gesture")
-                dpg.add_table_column(label="Action")
-                for gesture, action in _GESTURE_CHEAT_SHEET:
-                    with dpg.table_row():
-                        dpg.add_text(gesture)
-                        dpg.add_text(action)
+                dpg.add_spacer(width=10)
+                dpg.add_separator()
+                dpg.add_spacer(width=10)
+
+                with dpg.group(label=self.GESTURE_SHEET_TAG):
+                    dpg.add_text(
+                        "Gesture Clicking (always on for now)", color=LAKERS_PURPLE
+                    )
+                    dpg.add_text(
+                        "These facial gestures trigger clicks once tracking starts:",
+                        wrap=520,
+                    )
+                    with dpg.table(
+                        header_row=True, policy=dpg.mvTable_SizingStretchProp
+                    ):
+                        dpg.add_table_column(label="Gesture")
+                        dpg.add_table_column(label="Action")
+                        for gesture, action in _GESTURE_CHEAT_SHEET:
+                            with dpg.table_row():
+                                dpg.add_text(gesture)
+                                dpg.add_text(action)
 
             dpg.add_spacer(height=10)
             dpg.add_separator()
