@@ -1,7 +1,7 @@
 # Changelog
 
-## v0.0.4
+## v0.0.5
 
-- Now supporting Arch Linux!
-- Added theme for better UX.
+- Updates to the Onboarding UI
+- Added cross-platform support for listing cameras.
 

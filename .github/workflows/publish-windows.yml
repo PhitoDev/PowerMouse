@@ -13,11 +13,9 @@ jobs:
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
-            - name: Install UV
-              run: winget install --id=astral-sh.uv  -e
-            - name: Install dependencies
-              run: poetry install
-            - name: Build Artifacts
+            - name: Install the latest version of uv
+              uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+            - name: Build artifacts
               run: |
                   uv run briefcase create
                   uv run briefcase build

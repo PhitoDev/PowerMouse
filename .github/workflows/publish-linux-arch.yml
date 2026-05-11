@@ -19,7 +19,6 @@ jobs:
               run: uv python install 3.14
             - name: Build Artifacts
               run: |
-                  uv build
                   uv run briefcase create linux system --target archlinux:latest
                   uv run briefcase build linux system --target archlinux:latest
                   uv run briefcase package linux system --target archlinux:latest
