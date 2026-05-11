@@ -17,6 +17,8 @@ jobs:
               run: curl -LsSf https://astral.sh/uv/install.sh | sh
             - name: Install Python
               run: uv python install 3.14
+            - name: Stage CHANGELOG for Briefcase
+              run: cp CHANGELOG.md CHANGELOG
             - name: Build Artifacts
               run: |
                   uv run briefcase create linux system --target archlinux:latest
