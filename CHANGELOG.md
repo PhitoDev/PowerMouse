@@ -4,4 +4,5 @@
 
 - Added `CONTRIBUTING.md`to project.
 - Updated license document with full text.
+- Fixed crash on Onboarding cancel.
 

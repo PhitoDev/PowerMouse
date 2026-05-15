@@ -1,6 +1,6 @@
 [project]
 name = "PowerMouse"
-version = "0.0.5"
+version = "0.0.6"
 description = "Hands-free mouse control using face tracking"
 authors = [
     { name = "Ralph Dugue", email = "ralph@phito.dev" }
@@ -9,7 +9,7 @@ readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">= 3.12, < 4.0.0"
-dependencies = [
+LD dependencies = [
     "sqlalchemy >= 2.0.49",
     "opencv-python >= 4.13.0.92",
     "dearpygui >= 2.3",
