@@ -1,7 +1,9 @@
 # Changelog
 
-## v0.0.5
+## v0.0.6
 
-- Updates to the Onboarding UI
-- Added cross-platform support for listing cameras.
+- Added `CONTRIBUTING.md`to project.
+- Updated license document with full text.
+- Fixed crash on Onboarding cancel.
 
+ 

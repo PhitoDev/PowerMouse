@@ -1,6 +1,7 @@
 # pyright: reportGeneralTypeIssues=false, reportArgumentType=false
 from __future__ import annotations
 
+import sys
 import threading
 import time
 
@@ -33,7 +34,12 @@ def main() -> None:
 
     # First-run onboarding when no profiles exist.
     if not profile_manager.list_profiles():
-        run_onboarding(profile_manager, device_manager)
+        created = run_onboarding(profile_manager, device_manager)
+        if created is None:
+            # User cancelled / closed the onboarding window. Exit cleanly with
+            # status 0 and no stderr output -- on Briefcase Windows MSI builds
+            # the stub treats stderr writes during shutdown as a crash.
+            sys.exit(0)
 
     try:
         active_profile = profile_manager.get_active_profile()
@@ -41,7 +47,7 @@ def main() -> None:
         # Profiles exist but none is active; pick the first one and activate it.
         profiles = profile_manager.list_profiles()
         if not profiles:
-            raise SystemExit("No profiles available after onboarding; exiting.")
+            sys.exit(0)
         first = profiles[0]
         first.is_active = True
         active_profile = profile_manager.update_profile(first.profile_id, first)

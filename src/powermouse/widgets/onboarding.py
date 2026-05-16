@@ -51,9 +51,16 @@ class OnboardingDialog:
 
     # -- entry point ---------------------------------------------------
 
-    def run(self) -> Profile:
-        """Display the dialog and return the created profile. Raises SystemExit if the
-        user closes the viewport without completing."""
+    def run(self) -> Optional[Profile]:
+        """Display the dialog and return the created profile, or ``None`` if the
+        user cancelled / closed the window without completing.
+
+        We deliberately do *not* raise ``SystemExit`` here: on Briefcase Windows
+        MSI builds the app runs without an attached console, so writing the
+        ``SystemExit`` message to ``sys.stderr`` during interpreter shutdown is
+        treated as a crash by the stub and produces a "the application has
+        crashed" dialog. Returning ``None`` lets ``main()`` exit cleanly.
+        """
         dpg.create_context()
         try:
             dpg.create_viewport(title="PowerMouse Setup", width=760, height=560)
@@ -69,10 +76,11 @@ class OnboardingDialog:
                 if self._created is not None:
                     break
         finally:
-            dpg.destroy_context()
+            try:
+                dpg.destroy_context()
+            except Exception:  # noqa: BLE001 - best-effort cleanup on shutdown
+                pass
 
-        if self._created is None:
-            raise SystemExit("Onboarding cancelled; no profile was created.")
         return self._created
 
     # -- DPG tree ------------------------------------------------------
@@ -220,6 +228,7 @@ class OnboardingDialog:
 
 def run_onboarding(
     profile_manager: SqlAlchemyProfileManager, device_manager: DeviceManager
-) -> Profile:
-    """Convenience helper: run the dialog once and return the created profile."""
+) -> Optional[Profile]:
+    """Convenience helper: run the dialog once and return the created profile,
+    or ``None`` if the user cancelled."""
     return OnboardingDialog(profile_manager, device_manager).run()
