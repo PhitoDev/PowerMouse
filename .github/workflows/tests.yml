@@ -28,7 +28,7 @@ jobs:
                       libxinerama1 \
                       libxcursor1 \
                       libxi6 \
-                      libgles2-mesa
+                      libgles2-mesa-dev
             - name: Sync project (with dev group)
               run: uv sync --group dev
             - name: Run tests
