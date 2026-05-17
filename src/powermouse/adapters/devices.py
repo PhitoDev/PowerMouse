@@ -20,6 +20,9 @@ class SystemDeviceManager(DeviceManager):
 
         for i, name in devices.items():
             cap = cv2.VideoCapture(i)
+            if not cap.isOpened():
+                continue
+
             fps = cap.get(cv2.CAP_PROP_FPS)
             height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
