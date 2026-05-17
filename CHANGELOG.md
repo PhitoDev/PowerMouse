@@ -1,9 +1,7 @@
 # Changelog
 
-## v0.0.6
+## v0.0.7
 
-- Added `CONTRIBUTING.md`to project.
-- Updated license document with full text.
-- Fixed crash on Onboarding cancel.
-
- 
+- Fixed crash from probing for available cameras.
+- Added background tracking loop to keep the application responsive.
+- Mouse events no longer block the application via resource exhaustion due to spawning excessive threads.

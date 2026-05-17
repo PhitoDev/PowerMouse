@@ -110,15 +110,16 @@ def main() -> None:
 
     # Create a background thread for tracking
     def background_tracking_loop():
-        tracking_step(
-            frame_processor=camera_widget.update_frame,
-            mouse_controller=mouse_controller,
-            inference_controller=inference_controller,
-            camera_controller=camera_controller,
-            gesture_translator=gesture_translator,
-        )
+        while dpg.is_dearpygui_running():
+            tracking_step(
+                frame_processor=camera_widget.update_frame,
+                mouse_controller=mouse_controller,
+                inference_controller=inference_controller,
+                camera_controller=camera_controller,
+                gesture_translator=gesture_translator,
+            )
 
-        time.sleep(0.005)
+            time.sleep(0.005)
 
     tracking_thread = threading.Thread(target=background_tracking_loop, daemon=True)
     tracking_thread.start()
