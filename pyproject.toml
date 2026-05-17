@@ -1,6 +1,6 @@
 [project]
 name = "PowerMouse"
-version = "0.0.6"
+version = "0.0.7"
 description = "Hands-free mouse control using face tracking"
 authors = [
     { name = "Ralph Dugue", email = "ralph@phito.dev" }

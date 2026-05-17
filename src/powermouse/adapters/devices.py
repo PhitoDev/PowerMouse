@@ -1,5 +1,3 @@
-import glob
-import os
 import platform
 
 import cv2
@@ -25,6 +23,7 @@ class SystemDeviceManager(DeviceManager):
             fps = cap.get(cv2.CAP_PROP_FPS)
             height = cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
             width = cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+            cap.release()
             frame = _EMPTY_FRAME
             cameras.append(
                 Camera(

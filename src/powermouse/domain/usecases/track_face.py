@@ -1,13 +1,12 @@
-import threading
 import time
 
 from powermouse.domain.controllers import camera, inference, mouse, profile
-from powermouse.domain.usecases.gesture_mapping import GestureToMouseTranslator
 from powermouse.domain.models.mouse import MouseButton, MouseEvent, MouseEventType
+from powermouse.domain.usecases.gesture_mapping import GestureToMouseTranslator
 
 
 def _dispatch(mouse_controller: mouse.MouseController, event: MouseEvent) -> None:
-    threading.Thread(target=mouse_controller.handle_event, args=(event,)).start()
+    mouse_controller.handle_event(event)
 
 
 def tracking_step(
@@ -26,7 +25,12 @@ def tracking_step(
     cursor = inference_controller.get_cursor_position()
     _dispatch(
         mouse_controller,
-        MouseEvent(button=MouseButton.LEFT, x=cursor[0], y=cursor[1], event_type=MouseEventType.MOVE),
+        MouseEvent(
+            button=MouseButton.LEFT,
+            x=cursor[0],
+            y=cursor[1],
+            event_type=MouseEventType.MOVE,
+        ),
     )
 
     # Drain any queued gestures and dispatch their mouse events.
