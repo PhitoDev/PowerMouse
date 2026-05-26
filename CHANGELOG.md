@@ -1,7 +1,5 @@
 # Changelog
 
-## v0.0.7
+## v0.0.8
 
-- Fixed crash from probing for available cameras.
-- Added background tracking loop to keep the application responsive.
-- Mouse events no longer block the application via resource exhaustion due to spawning excessive threads.
+- Fixed a crash that occurs when the user's default camera is already in use.

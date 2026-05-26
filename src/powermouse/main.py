@@ -62,14 +62,12 @@ def main() -> None:
     mouse_controller = SystemMouseController()
     gesture_translator = GestureToMouseTranslator()
 
-    camera_controller.start_stream()
-    inference_controller.start()
-
     # Widgets ----------------------------------------------------------
     camera_widget = CameraWidget(
         camera_controller=camera_controller,
         inference_controller=inference_controller,
         profile_manager=profile_manager,
+        device_manager=device_manager,
         cameras=device_manager.get_devices(),
         current_camera=active_profile.face_tracker_settings.camera,
         panel_width=640,
@@ -103,6 +101,11 @@ def main() -> None:
 
     # Initial selection triggers settings.bind(), which populates the tabs.
     profiles_widget.select_initial()
+
+    # Start the camera + inference pipeline. If the saved camera can't be
+    # opened (e.g. was unplugged), the widget switches into a recovery
+    # state instead of crashing the app.
+    camera_widget.start()
 
     dpg.create_viewport(title="PowerMouse", width=1280, height=720)
     dpg.setup_dearpygui()

@@ -127,3 +127,125 @@ class TestUpdateCamera:
         # The persisted profile should reference the new camera identity.
         assert active.face_tracker_settings.camera.id == "1"
         assert active.face_tracker_settings.camera.name == "Other"
+
+
+class TestTrackingStepRecovery:
+    def test_skips_frame_when_camera_paused(
+        self,
+        sync_dispatch,
+        fake_camera_controller,
+        fake_inference_controller,
+        recording_mouse_controller,
+    ):
+        """A paused stream (e.g. recovery panel open) must not crash the loop."""
+        fake_camera_controller.fail_update = True
+        translator = GestureToMouseTranslator()
+
+        # Should not raise; the tick is silently skipped.
+        track_face.tracking_step(
+            camera_controller=fake_camera_controller,
+            inference_controller=fake_inference_controller,
+            mouse_controller=recording_mouse_controller,
+            gesture_translator=translator,
+            frame_processor=lambda *_: None,
+        )
+
+        # Nothing downstream of the failed read should have happened.
+        assert fake_inference_controller.process_calls == []
+        assert recording_mouse_controller.events == []
+
+
+class TestTryStartCamera:
+    def test_returns_true_on_success(
+        self, fake_camera_controller, fake_inference_controller
+    ):
+        ok, reason = track_face.try_start_camera(
+            fake_camera_controller, fake_inference_controller
+        )
+        assert ok is True
+        assert reason is None
+        assert fake_camera_controller.start_calls == 1
+        assert fake_inference_controller.start_calls == 1
+
+    def test_returns_false_with_reason_on_runtime_error(
+        self, fake_camera_controller, fake_inference_controller, camera
+    ):
+        fake_camera_controller.fail_for_ids[camera.id] = (
+            "Failed to open camera at index 1400"
+        )
+        ok, reason = track_face.try_start_camera(
+            fake_camera_controller, fake_inference_controller
+        )
+        assert ok is False
+        assert reason == "Failed to open camera at index 1400"
+        # Inference must NOT be started when camera fails.
+        assert fake_inference_controller.start_calls == 0
+
+
+class TestSwapCamera:
+    def _make_other(self, **overrides):
+        from powermouse.domain.models.camera import Camera
+        import numpy as np
+
+        defaults = dict(
+            name="Other",
+            id="1",
+            fps=15.0,
+            current_frame=np.zeros((4, 4, 3), dtype=np.uint8),
+            frame_width=4,
+            frame_height=4,
+        )
+        defaults.update(overrides)
+        return Camera(**defaults)
+
+    def test_success_swaps_starts_and_persists(
+        self,
+        populated_profile_manager,
+        fake_camera_controller,
+        fake_inference_controller,
+    ):
+        new_cam = self._make_other()
+
+        ok, reason = track_face.swap_camera(
+            fake_camera_controller,
+            fake_inference_controller,
+            populated_profile_manager,
+            new_cam,
+        )
+
+        assert (ok, reason) == (True, None)
+        # Stream is stopped and restarted on the new camera.
+        assert fake_camera_controller.stop_calls == 1
+        assert fake_camera_controller.start_calls == 1
+        assert fake_camera_controller.camera.id == new_cam.id
+        # Profile was updated.
+        active = populated_profile_manager.get_active_profile()
+        assert active.face_tracker_settings.camera.id == new_cam.id
+
+    def test_failure_does_not_persist(
+        self,
+        populated_profile_manager,
+        fake_camera_controller,
+        fake_inference_controller,
+    ):
+        broken = self._make_other(name="Broken", id="1400")
+        fake_camera_controller.fail_for_ids[broken.id] = "boom"
+
+        # Capture original camera id from the profile.
+        original_id = (
+            populated_profile_manager.get_active_profile()
+            .face_tracker_settings.camera.id
+        )
+
+        ok, reason = track_face.swap_camera(
+            fake_camera_controller,
+            fake_inference_controller,
+            populated_profile_manager,
+            broken,
+        )
+
+        assert ok is False
+        assert reason == "boom"
+        # Profile must be untouched on failure.
+        active = populated_profile_manager.get_active_profile()
+        assert active.face_tracker_settings.camera.id == original_id

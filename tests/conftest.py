@@ -90,14 +90,29 @@ class FakeCameraController(CameraController):
         self.start_calls = 0
         self.stop_calls = 0
         self.update_calls = 0
+        # Tests that don't care about the start/stop lifecycle treat the
+        # stream as already running; tests that exercise recovery call
+        # ``stop_stream`` and ``start_stream`` explicitly.
+        self.streaming = True
+        # Set per-camera-id failure: {"1400": "Failed to open camera at index 1400"}
+        self.fail_for_ids: dict[str, str] = {}
+        # When True, ``update_frame`` raises (simulates a paused stream).
+        self.fail_update = False
 
     def start_stream(self) -> None:
         self.start_calls += 1
+        msg = self.fail_for_ids.get(str(self.camera.id))
+        if msg is not None:
+            raise RuntimeError(msg)
+        self.streaming = True
 
     def stop_stream(self) -> None:
         self.stop_calls += 1
+        self.streaming = False
 
     def update_frame(self) -> None:
+        if self.fail_update or not self.streaming:
+            raise RuntimeError("Camera stream is not started.")
         self.update_calls += 1
         frame = self._frames[self._idx % len(self._frames)]
         self._idx += 1
