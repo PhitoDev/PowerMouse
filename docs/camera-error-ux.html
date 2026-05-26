@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>PowerMouse · Graceful Camera Recovery</title>
+<style>
+  :root {
+    --bg: #0e1116;
+    --panel: #161b22;
+    --panel-2: #1f252e;
+    --border: #2a313c;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #4f8cff;
+    --accent-hover: #3a78f0;
+    --danger: #f85149;
+    --warn: #d29922;
+    --ok: #2ea043;
+    --radius: 10px;
+    --shadow: 0 8px 30px rgba(0,0,0,0.45);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    background: linear-gradient(180deg, #0b0e13 0%, #11151c 100%);
+    color: var(--text);
+    font-family: var(--font);
+    line-height: 1.5;
+  }
+  header.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 16px;
+  }
+  header.page h1 {
+    font-size: 28px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    color: var(--muted);
+    margin: 0;
+    max-width: 720px;
+  }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+  section.card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  section.card > header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--panel-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  section.card > header h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0;
+    font-weight: 600;
+  }
+  section.card > header .tag {
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(79,140,255,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(79,140,255,0.35);
+  }
+  section.card > .content { padding: 24px; }
+
+  /* ============ App mock window ============ */
+  .app-window {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  .titlebar {
+    height: 32px;
+    background: #161b22;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .dot.r { background: #ff5f56; }
+  .dot.y { background: #ffbd2e; }
+  .dot.g { background: #27c93f; }
+  .titlebar .title {
+    color: var(--muted);
+    font-size: 12px;
+    margin-left: 12px;
+  }
+
+  .app-body {
+    display: grid;
+    grid-template-columns: 180px 1fr 220px;
+    min-height: 460px;
+    position: relative;
+  }
+  .sidebar, .rightbar {
+    background: #11161d;
+    padding: 16px;
+    border-right: 1px solid var(--border);
+  }
+  .rightbar { border-right: 0; border-left: 1px solid var(--border); }
+  .sidebar h3, .rightbar h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .sidebar ul, .rightbar ul {
+    list-style: none;
+    margin: 0; padding: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .sidebar li, .rightbar li {
+    padding: 6px 8px;
+    border-radius: 6px;
+  }
+  .sidebar li.active { background: rgba(79,140,255,0.12); color: var(--text); }
+
+  .canvas {
+    background:
+      radial-gradient(800px 200px at 50% -50px, rgba(79,140,255,0.06), transparent 60%),
+      #0d1117;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ============ Inline recovery panel ============ */
+  .recovery {
+    width: 520px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .recovery .icon-wrap {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .recovery .icon {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(248,81,73,0.12);
+    border: 1px solid rgba(248,81,73,0.35);
+    display: grid; place-items: center;
+    color: var(--danger);
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .recovery h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  .recovery .sub {
+    margin: 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .recovery .body {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 12px 0 16px;
+  }
+  .recovery .body code {
+    background: #0b0e13;
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: "SF Mono", Menlo, monospace;
+    color: var(--text);
+    font-size: 12px;
+  }
+
+  /* ============ Camera list ============ */
+  .camera-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow: auto;
+  }
+  .cam {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .cam:hover { border-color: #3a4452; }
+  .cam.selected {
+    border-color: var(--accent);
+    background: rgba(79,140,255,0.08);
+  }
+  .cam.missing { opacity: .55; }
+  .cam .left {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .cam .left .ico {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    display: grid; place-items: center;
+    font-size: 14px;
+  }
+  .cam .meta strong {
+    display: block;
+    font-size: 13px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .cam .meta small {
+    color: var(--muted);
+    font-size: 11px;
+  }
+  .badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .badge.ok { color: var(--ok); border-color: rgba(46,160,67,0.4); background: rgba(46,160,67,0.08); }
+  .badge.warn { color: var(--warn); border-color: rgba(210,153,34,0.4); background: rgba(210,153,34,0.08); }
+  .badge.miss { color: var(--danger); border-color: rgba(248,81,73,0.4); background: rgba(248,81,73,0.08); }
+
+  /* ============ Buttons ============ */
+  .actions {
+    display: flex;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .actions .group { display: flex; gap: 8px; }
+  button {
+    font: inherit;
+    cursor: pointer;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: 13px;
+    transition: background .15s, border-color .15s, transform .05s;
+  }
+  button:hover { background: #262d38; }
+  button:active { transform: translateY(1px); }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    font-weight: 500;
+  }
+  button.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  button.ghost {
+    background: transparent;
+    color: var(--muted);
+    border-color: transparent;
+  }
+  button.ghost:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  button.link {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    padding: 0;
+    font-size: 12px;
+  }
+  button.link:hover { text-decoration: underline; background: transparent; }
+
+  /* ============ Details / log ============ */
+  details {
+    margin-top: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+  }
+  details summary {
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--muted);
+    user-select: none;
+  }
+  details summary:hover { color: var(--text); }
+  pre.log {
+    margin: 10px 0 0;
+    padding: 12px;
+    background: #0b0e13;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px;
+    color: #c9d1d9;
+    overflow: auto;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+
+  /* ============ Toast ============ */
+  .toast {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--warn);
+    padding: 12px 14px;
+    border-radius: 6px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    max-width: 380px;
+    box-shadow: var(--shadow);
+  }
+  .toast .t-ico {
+    color: var(--warn);
+    font-weight: 700;
+    line-height: 1;
+    padding-top: 2px;
+  }
+  .toast .t-body { font-size: 13px; }
+  .toast .t-body strong { display: block; margin-bottom: 2px; }
+  .toast .t-body p { margin: 0; color: var(--muted); font-size: 12px; }
+
+  /* ============ Before/after split ============ */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .compare .col header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .compare .col header .pill {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .compare .col header .pill.bad { color: var(--danger); border-color: rgba(248,81,73,0.4); background: rgba(248,81,73,0.08); }
+  .compare .col header .pill.good { color: var(--ok); border-color: rgba(46,160,67,0.4); background: rgba(46,160,67,0.08); }
+
+  .crash {
+    background: #0b0e13;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: #ffb4ad;
+    min-height: 220px;
+  }
+  .crash .ttl { color: var(--danger); margin-bottom: 8px; }
+
+  /* ============ Principles list ============ */
+  .principles {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+  .principle {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .principle h4 {
+    margin: 0 0 6px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .principle p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .principle .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    line-height: 22px;
+    border-radius: 50%;
+    background: rgba(79,140,255,0.12);
+    color: var(--accent);
+    font-size: 11px;
+    text-align: center;
+    margin-right: 8px;
+    font-weight: 600;
+  }
+
+  /* ============ Flow ============ */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    overflow-x: auto;
+  }
+  .step {
+    flex: 1 1 0;
+    min-width: 160px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .step .k {
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .step h5 { margin: 0 0 4px; font-size: 13px; }
+  .step p { margin: 0; font-size: 11px; color: var(--muted); }
+  .arr {
+    display: grid; place-items: center;
+    color: var(--muted);
+    font-size: 18px;
+    padding: 0 4px;
+  }
+
+  footer.page {
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    padding: 32px 24px 48px;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <h1>Graceful Camera Recovery</h1>
+  <p>
+    A UX proposal for <strong>PowerMouse</strong> when the configured camera can't be opened
+    (e.g. <code>RuntimeError: Failed to open camera at index 1400</code>). Instead of crashing
+    on launch, the app stays open and guides the user through a one-click fix.
+  </p>
+</header>
+
+<main>
+
+  <!-- ============ HERO MOCKUP ============ -->
+  <section class="card">
+    <header>
+      <h2>Primary solution · inline recovery panel</h2>
+      <span class="tag">Recommended</span>
+    </header>
+    <div class="content">
+
+      <div class="app-window" role="img" aria-label="PowerMouse window with inline camera recovery panel">
+        <div class="titlebar">
+          <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+          <span class="title">PowerMouse — Default profile</span>
+        </div>
+        <div class="app-body">
+          <aside class="sidebar">
+            <h3>Profiles</h3>
+            <ul>
+              <li class="active">Default</li>
+              <li>Work laptop</li>
+              <li>Streaming rig</li>
+            </ul>
+          </aside>
+
+          <div class="canvas">
+            <div class="recovery" role="alertdialog" aria-labelledby="rec-title" aria-describedby="rec-desc">
+              <div class="icon-wrap">
+                <div class="icon" aria-hidden="true">!</div>
+                <div>
+                  <h3 id="rec-title">We couldn't reach your camera</h3>
+                  <p class="sub">PowerMouse is paused until a working camera is selected.</p>
+                </div>
+              </div>
+
+              <p id="rec-desc" class="body">
+                Your saved camera <code>HD Pro Webcam (index 1400)</code> isn't connected right now.
+                Pick another camera to keep going — your profile will remember it.
+              </p>
+
+              <div class="camera-list" role="listbox" aria-label="Available cameras">
+                <div class="cam selected" role="option" aria-selected="true">
+                  <div class="left">
+                    <div class="ico">📷</div>
+                    <div class="meta">
+                      <strong>Integrated Webcam</strong>
+                      <small>1280×720 · 30 fps · index 0</small>
+                    </div>
+                  </div>
+                  <span class="badge ok">Ready</span>
+                </div>
+                <div class="cam" role="option" aria-selected="false">
+                  <div class="left">
+                    <div class="ico">📷</div>
+                    <div class="meta">
+                      <strong>OBS Virtual Camera</strong>
+                      <small>1920×1080 · 60 fps · index 2</small>
+                    </div>
+                  </div>
+                  <span class="badge warn">Virtual</span>
+                </div>
+                <div class="cam missing" role="option" aria-selected="false" aria-disabled="true">
+                  <div class="left">
+                    <div class="ico">📷</div>
+                    <div class="meta">
+                      <strong>HD Pro Webcam</strong>
+                      <small>Previously used · index 1400 · not detected</small>
+                    </div>
+                  </div>
+                  <span class="badge miss">Missing</span>
+                </div>
+              </div>
+
+              <div class="actions">
+                <button class="ghost" title="Re-scan connected devices">↻ Refresh devices</button>
+                <div class="group">
+                  <button class="link">Open settings</button>
+                  <button class="primary">Use this camera</button>
+                </div>
+              </div>
+
+              <details>
+                <summary>Show technical details</summary>
+                <pre class="log">RuntimeError: Failed to open camera at index 1400
+  at powermouse/adapters/camera.py:44 in start_stream
+  at powermouse/main.py:65 in main</pre>
+              </details>
+            </div>
+          </div>
+
+          <aside class="rightbar">
+            <h3>Tracking</h3>
+            <ul>
+              <li style="color:var(--muted)">Sensitivity</li>
+              <li style="color:var(--muted)">Smoothing</li>
+              <li style="color:var(--muted)">Click gesture</li>
+            </ul>
+          </aside>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ BEFORE / AFTER ============ -->
+  <section class="card">
+    <header>
+      <h2>Before vs. after</h2>
+      <span class="tag">Why this matters</span>
+    </header>
+    <div class="content compare">
+      <div class="col">
+        <header>Today <span class="pill bad">Crashes</span></header>
+        <div class="crash">
+          <div class="ttl">Application quit abnormally!</div>
+Traceback (most recent call last):<br>
+&nbsp;&nbsp;File "\app\powermouse\__main__.py", line 6, in &lt;module&gt;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;main()<br>
+&nbsp;&nbsp;File "\app\powermouse\main.py", line 65, in main<br>
+&nbsp;&nbsp;&nbsp;&nbsp;camera_controller.start_stream()<br>
+&nbsp;&nbsp;File "\app\powermouse\adapters\camera.py", line 44, in start_stream<br>
+&nbsp;&nbsp;&nbsp;&nbsp;raise RuntimeError(f"Failed to open camera at index {index}")<br>
+RuntimeError: Failed to open camera at index 1400
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:10px 0 0">
+          User is locked out of the app entirely. Recovery requires editing the profile DB or
+          re-onboarding from scratch.
+        </p>
+      </div>
+
+      <div class="col">
+        <header>Proposed <span class="pill good">Recovers in 1 click</span></header>
+        <div style="background:#0b0e13;border:1px solid var(--border);border-radius:8px;padding:16px;min-height:220px;display:flex;flex-direction:column;gap:10px;">
+          <div class="toast">
+            <span class="t-ico">!</span>
+            <div class="t-body">
+              <strong>Camera unavailable</strong>
+              <p>HD Pro Webcam isn't connected. Pick another camera to keep PowerMouse running.</p>
+            </div>
+          </div>
+          <ul style="margin:0;padding-left:18px;color:var(--muted);font-size:12px;line-height:1.7;">
+            <li>App stays open; UI is fully usable.</li>
+            <li>Detected cameras are listed with status badges.</li>
+            <li>One click switches the active profile to a working camera.</li>
+            <li>Stack trace is hidden behind <em>Show technical details</em>.</li>
+            <li>"Refresh devices" lets users plug in and try again without restarting.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FLOW ============ -->
+  <section class="card">
+    <header>
+      <h2>Recovery flow</h2>
+      <span class="tag">Happy path = 1 click</span>
+    </header>
+    <div class="content">
+      <div class="flow">
+        <div class="step">
+          <div class="k">1 · Detect</div>
+          <h5>start_stream() fails</h5>
+          <p>OpenCV can't open the saved index. The exception is caught instead of bubbling up.</p>
+        </div>
+        <div class="arr">→</div>
+        <div class="step">
+          <div class="k">2 · Pause</div>
+          <h5>Tracking suspended</h5>
+          <p>Inference loop pauses, mouse control released, UI stays responsive.</p>
+        </div>
+        <div class="arr">→</div>
+        <div class="step">
+          <div class="k">3 · Inform</div>
+          <h5>Inline recovery panel</h5>
+          <p>Plain-language message in the camera region; not a blocking modal.</p>
+        </div>
+        <div class="arr">→</div>
+        <div class="step">
+          <div class="k">4 · Recover</div>
+          <h5>Pick or re-scan</h5>
+          <p>Choose a detected camera, or click <em>Refresh devices</em> after plugging in.</p>
+        </div>
+        <div class="arr">→</div>
+        <div class="step">
+          <div class="k">5 · Persist</div>
+          <h5>Profile updated</h5>
+          <p>New camera saved to the active profile so it just works next launch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRINCIPLES ============ -->
+  <section class="card">
+    <header>
+      <h2>UX principles applied</h2>
+      <span class="tag">Design rationale</span>
+    </header>
+    <div class="content">
+      <div class="principles">
+        <div class="principle">
+          <h4><span class="num">1</span>Never crash, always recover</h4>
+          <p>A missing camera is an expected runtime condition (unplugged, used by another app, virtual cam disabled). Treat it as a state, not a fatal error.</p>
+        </div>
+        <div class="principle">
+          <h4><span class="num">2</span>Speak the user's language</h4>
+          <p><em>"We couldn't reach your camera"</em> beats <em>"RuntimeError: Failed to open camera at index 1400"</em>. The raw trace is still available for power users behind a disclosure.</p>
+        </div>
+        <div class="principle">
+          <h4><span class="num">3</span>Offer the next step, not just the problem</h4>
+          <p>The panel shows a primary action (<strong>Use this camera</strong>) and a secondary recovery (<strong>Refresh devices</strong>). No dead ends.</p>
+        </div>
+        <div class="principle">
+          <h4><span class="num">4</span>Preserve context</h4>
+          <p>Recovery happens inside the app shell — sidebar, profiles, and settings remain visible — so users feel oriented, not displaced.</p>
+        </div>
+        <div class="principle">
+          <h4><span class="num">5</span>Make the broken thing visible</h4>
+          <p>The previously-used camera is listed with a <span class="badge miss">Missing</span> badge, confirming the diagnosis instead of hiding it.</p>
+        </div>
+        <div class="principle">
+          <h4><span class="num">6</span>Persist the fix</h4>
+          <p>Selecting a new camera updates the active profile, so the user isn't asked again on next launch.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ IMPLEMENTATION NOTES ============ -->
+  <section class="card">
+    <header>
+      <h2>Implementation sketch</h2>
+      <span class="tag">For engineers</span>
+    </header>
+    <div class="content" style="font-size:13px;color:var(--muted);">
+      <ol style="padding-left:18px;line-height:1.7;">
+        <li>
+          In <code>main()</code>, wrap <code>camera_controller.start_stream()</code> in a
+          <code>try/except (RuntimeError, ValueError)</code>. On failure, mount the camera
+          widget in a <em>"needs recovery"</em> state instead of raising.
+        </li>
+        <li>
+          Add <code>device_manager.get_devices()</code> output to the recovery panel and mark
+          the profile's saved camera as <em>missing</em> if it isn't in the list.
+        </li>
+        <li>
+          Wire the primary button to call
+          <code>profile_manager.update_profile()</code> with the chosen camera and then
+          <code>camera_controller</code> + <code>inference_controller</code> restart.
+        </li>
+        <li>
+          <em>Refresh devices</em> simply re-runs <code>device_manager.get_devices()</code> —
+          no app restart required.
+        </li>
+        <li>
+          Keep the original traceback log file untouched for diagnostics; surface it via
+          <em>Show technical details</em> so power users can still copy it.
+        </li>
+      </ol>
+    </div>
+  </section>
+
+</main>
+
+<footer class="page">
+  PowerMouse · UX proposal · A graceful response to <code>camera.py:44</code>
+</footer>
+
+</body>
+</html>
