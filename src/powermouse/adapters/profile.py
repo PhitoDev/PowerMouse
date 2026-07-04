@@ -135,8 +135,10 @@ def _build_engine(db_url: Optional[str]) -> Engine:
 class SqlAlchemyProfileManager(ProfileManager):
     """ProfileManager backed by SQLAlchemy + SQLite."""
 
-    def __init__(self, db_url: Optional[str] = None):
+    def __init__(self, db_url: Optional[str] = None, *, reset_db: bool = False):
         self._engine = _build_engine(db_url)
+        if reset_db:
+            _Base.metadata.drop_all(self._engine)
         _Base.metadata.create_all(self._engine)
         self._session_factory = sessionmaker(bind=self._engine, expire_on_commit=False, future=True)
 

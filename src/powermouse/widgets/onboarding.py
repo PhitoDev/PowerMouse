@@ -17,7 +17,7 @@ from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.domain.models.camera import Camera, FaceTrackerSettings
 from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.profile import Profile
-from powermouse.theme import LAKERS_PURPLE, STATUS_RED, setup_theme
+from powermouse.theme import OFF_WHITE, STATUS_RED, setup_theme
 
 _GESTURE_CHEAT_SHEET = [
     ("Wink left eye", "Left click"),
@@ -87,7 +87,7 @@ class OnboardingDialog:
 
     def _build(self) -> None:
         with dpg.window(tag=self.WINDOW_TAG, no_scrollbar=False, no_title_bar=True):
-            dpg.add_text("Welcome to PowerMouse", color=LAKERS_PURPLE)
+            dpg.add_text("Welcome to PowerMouse", color=OFF_WHITE)
             dpg.add_text(
                 "Let's set up your first profile. You can create more later from the main window.",
                 wrap=520,
@@ -121,7 +121,7 @@ class OnboardingDialog:
 
                 with dpg.group(label=self.GESTURE_SHEET_TAG):
                     dpg.add_text(
-                        "Gesture Clicking (always on for now)", color=LAKERS_PURPLE
+                        "Gesture Clicking (always on for now)", color=OFF_WHITE
                     )
                     dpg.add_text(
                         "These facial gestures trigger clicks once tracking starts:",

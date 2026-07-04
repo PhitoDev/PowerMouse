@@ -53,25 +53,25 @@ def apply_theme() -> None:
     if _theme_id is None or not dpg.does_item_exist(_theme_id):
         with dpg.theme() as _theme_id:
             with dpg.theme_component(dpg.mvAll):
-                # Backgrounds -> off-white
-                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, OFF_WHITE)
-                dpg.add_theme_color(dpg.mvThemeCol_ChildBg, OFF_WHITE)
-                dpg.add_theme_color(dpg.mvThemeCol_PopupBg, OFF_WHITE)
-                dpg.add_theme_color(dpg.mvThemeCol_MenuBarBg, OFF_WHITE)
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_TitleBg, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_TitleBgActive, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_TitleBgCollapsed, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_TableHeaderBg, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_TableRowBg, OFF_WHITE)
-                dpg.add_theme_color(dpg.mvThemeCol_TableRowBgAlt, OFF_WHITE_DEEP)
-                dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, OFF_WHITE_DEEP)
+                # Backgrounds -> Lakers purple
+                dpg.add_theme_color(dpg.mvThemeCol_WindowBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_ChildBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_PopupBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_MenuBarBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_TitleBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_TitleBgActive, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_TitleBgCollapsed, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_TableHeaderBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_TableRowBg, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_TableRowBgAlt, LAKERS_PURPLE)
+                dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, LAKERS_PURPLE)
 
-                # Text -> Lakers purple
-                dpg.add_theme_color(dpg.mvThemeCol_Text, LAKERS_PURPLE)
-                dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (140, 120, 160, 255))
+                # Text -> off-white
+                dpg.add_theme_color(dpg.mvThemeCol_Text, OFF_WHITE)
+                dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, OFF_WHITE_DEEP)
 
                 # Borders, separators, accents, highlights -> Lakers gold
                 dpg.add_theme_color(dpg.mvThemeCol_Border, LAKERS_GOLD)
@@ -90,10 +90,10 @@ def apply_theme() -> None:
                 dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, LAKERS_GOLD)
                 dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, LAKERS_GOLD)
 
-                dpg.add_theme_color(dpg.mvThemeCol_Tab, OFF_WHITE_DEEP)
+                dpg.add_theme_color(dpg.mvThemeCol_Tab, LAKERS_PURPLE)
                 dpg.add_theme_color(dpg.mvThemeCol_TabHovered, LAKERS_GOLD)
                 dpg.add_theme_color(dpg.mvThemeCol_TabActive, LAKERS_GOLD)
-                dpg.add_theme_color(dpg.mvThemeCol_TabUnfocused, OFF_WHITE_DEEP)
+                dpg.add_theme_color(dpg.mvThemeCol_TabUnfocused, LAKERS_PURPLE)
                 dpg.add_theme_color(dpg.mvThemeCol_TabUnfocusedActive, LAKERS_GOLD_SOFT)
 
                 dpg.add_theme_color(dpg.mvThemeCol_CheckMark, LAKERS_GOLD)

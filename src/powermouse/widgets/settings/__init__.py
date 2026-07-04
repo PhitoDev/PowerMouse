@@ -56,6 +56,24 @@ class SettingsWidget:
         self._tracking.bind(profile.face_tracker_settings)
         self._clicking.bind(profile)
 
+    def save(self) -> None:
+        """Persist the currently selected profile."""
+        self._save()
+
+    def revert(self) -> None:
+        """Reload the currently selected profile from persisted state."""
+        self._revert()
+
+    def select_tracking_tab(self) -> None:
+        """Focus the Tracking settings tab."""
+        if dpg.does_item_exist(self.TAB_BAR_TAG):
+            dpg.set_value(self.TAB_BAR_TAG, self.TRACKING_TAB_TAG)
+
+    def select_clicking_tab(self) -> None:
+        """Focus the Clicking settings tab."""
+        if dpg.does_item_exist(self.TAB_BAR_TAG):
+            dpg.set_value(self.TAB_BAR_TAG, self.CLICKING_TAB_TAG)
+
     # -- callbacks -----------------------------------------------------
 
     def _save(self, *_):

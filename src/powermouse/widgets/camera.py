@@ -154,6 +154,10 @@ class CameraWidget:
         self._show_recovery(reason)
         return False
 
+    def refresh_devices(self) -> None:
+        """Rescan cameras and refresh camera-selection controls."""
+        self._on_refresh_devices()
+
     # ------------------------------------------------------------------
     # Frame updates
     # ------------------------------------------------------------------
@@ -308,4 +312,11 @@ class CameraWidget:
         except Exception as exc:  # pragma: no cover - device-enum failure path
             self._last_failure = str(exc)
         self._selected_recovery = None
+        if dpg.does_item_exist(self.CAMERA_TAG):
+            dpg.configure_item(
+                self.CAMERA_TAG,
+                items=[cam.name for cam in self._cameras],
+            )
+            if any(cam.id == self._current_camera.id for cam in self._cameras):
+                dpg.set_value(self.CAMERA_TAG, self._current_camera.name)
         self._refresh_recovery_list()

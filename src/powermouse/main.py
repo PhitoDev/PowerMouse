@@ -27,9 +27,132 @@ from .domain.usecases.gesture_mapping import GestureToMouseTranslator
 from .domain.usecases.track_face import tracking_step
 
 
+DEFAULT_VIEWPORT_SIZE = (1280, 720)
+SCREEN_MARGIN_PX = 80
+PROFILES_PANEL_WIDTH = 240
+MIN_SETTINGS_PANEL_WIDTH = 280
+MIN_CAMERA_PANEL_WIDTH = 240
+LAYOUT_MARGIN_PX = 48
+CAMERA_PANEL_PADDING_PX = 16
+CAMERA_PREVIEW_ASPECT_RATIO = 16 / 9
+CAMERA_VERTICAL_CHROME_PX = 220
+SHORTCUT_HANDLER_TAG = "global_shortcut_handlers"
+
+
+def _shortcut_modifier_down() -> bool:
+    """Return true when Command on macOS, or Control elsewhere, is held."""
+    return any(
+        dpg.is_key_down(key)
+        for key in (
+            dpg.mvKey_LWin,
+            dpg.mvKey_RWin,
+            dpg.mvKey_LControl,
+            dpg.mvKey_RControl,
+        )
+    )
+
+
+def _shift_down() -> bool:
+    return dpg.is_key_down(dpg.mvKey_LShift) or dpg.is_key_down(dpg.mvKey_RShift)
+
+
+def _run_shortcut(callback, *, shift_required: bool = False) -> None:
+    if not _shortcut_modifier_down():
+        return
+    if shift_required and not _shift_down():
+        return
+    if not shift_required and _shift_down():
+        return
+    callback()
+
+
+def _register_keyboard_shortcuts(
+    profiles_widget: ProfilesWidget,
+    camera_widget: CameraWidget,
+    settings_widget: SettingsWidget,
+) -> None:
+    """Install global shortcuts used by Apple Voice Control custom commands."""
+    with dpg.handler_registry(tag=SHORTCUT_HANDLER_TAG):
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_N,
+            callback=lambda *_: _run_shortcut(profiles_widget.new_profile),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_S,
+            callback=lambda *_: _run_shortcut(settings_widget.save),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_R,
+            callback=lambda *_: _run_shortcut(settings_widget.revert),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_R,
+            callback=lambda *_: _run_shortcut(
+                camera_widget.refresh_devices,
+                shift_required=True,
+            ),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_Return,
+            callback=lambda *_: _run_shortcut(profiles_widget.set_active_selected),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_Delete,
+            callback=lambda *_: _run_shortcut(profiles_widget.delete_selected),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_1,
+            callback=lambda *_: _run_shortcut(settings_widget.select_tracking_tab),
+        )
+        dpg.add_key_press_handler(
+            key=dpg.mvKey_2,
+            callback=lambda *_: _run_shortcut(settings_widget.select_clicking_tab),
+        )
+
+
+def _viewport_size(monitor) -> tuple[int, int]:
+    """Return a main viewport size that stays inside the active display."""
+    max_width = max(1, monitor.width - SCREEN_MARGIN_PX)
+    max_height = max(1, monitor.height - SCREEN_MARGIN_PX)
+    return (
+        min(DEFAULT_VIEWPORT_SIZE[0], max_width),
+        min(DEFAULT_VIEWPORT_SIZE[1], max_height),
+    )
+
+
+def _camera_layout(viewport_width: int, viewport_height: int) -> tuple[int, int, int]:
+    """Scale the camera panel so the three-column UI fits in the viewport."""
+    max_panel_width = max(
+        MIN_CAMERA_PANEL_WIDTH,
+        viewport_width
+        - PROFILES_PANEL_WIDTH
+        - MIN_SETTINGS_PANEL_WIDTH
+        - LAYOUT_MARGIN_PX,
+    )
+    panel_width = min(640, max_panel_width)
+
+    max_image_width = max(1, panel_width - CAMERA_PANEL_PADDING_PX)
+    max_image_height = max(1, viewport_height - CAMERA_VERTICAL_CHROME_PX)
+    image_width = min(
+        624,
+        max_image_width,
+        int(max_image_height * CAMERA_PREVIEW_ASPECT_RATIO),
+    )
+    image_height = max(1, int(image_width / CAMERA_PREVIEW_ASPECT_RATIO))
+    panel_width = max(MIN_CAMERA_PANEL_WIDTH, image_width + CAMERA_PANEL_PADDING_PX)
+
+    return panel_width, image_width, image_height
+
+
 def main() -> None:
     monitor = get_monitors()[0]
-    profile_manager = SqlAlchemyProfileManager()
+    viewport_width, viewport_height = _viewport_size(monitor)
+    camera_panel_width, camera_image_width, camera_image_height = _camera_layout(
+        viewport_width,
+        viewport_height,
+    )
+    # Testing mode: start every app run with a clean profile database.
+    profile_manager = SqlAlchemyProfileManager(reset_db=True)
     device_manager = SystemDeviceManager()
 
     # First-run onboarding when no profiles exist.
@@ -70,9 +193,9 @@ def main() -> None:
         device_manager=device_manager,
         cameras=device_manager.get_devices(),
         current_camera=active_profile.face_tracker_settings.camera,
-        panel_width=640,
-        image_width=624,
-        image_height=352,
+        panel_width=camera_panel_width,
+        image_width=camera_image_width,
+        image_height=camera_image_height,
     )
     tracking_widget = TrackingSettingsWidget()
     clicking_widget = ClickingSettingsWidget()
@@ -90,11 +213,12 @@ def main() -> None:
     dpg.create_context()
     setup_theme()
 
-    with dpg.window(tag="root", no_scrollbar=True) as root:
-        with dpg.group(horizontal=True):
-            profiles_widget.build(parent=root)
-            camera_widget.build(parent=root)
-            settings_widget.build(parent=root)
+    with dpg.window(tag="root", no_scrollbar=True):
+        with dpg.group(horizontal=True) as main_row:
+            profiles_widget.build(parent=main_row)
+            camera_widget.build(parent=main_row)
+            settings_widget.build(parent=main_row)
+    _register_keyboard_shortcuts(profiles_widget, camera_widget, settings_widget)
 
     # dpg.show_font_manager()
     dpg.set_primary_window("root", True)
@@ -107,7 +231,11 @@ def main() -> None:
     # state instead of crashing the app.
     camera_widget.start()
 
-    dpg.create_viewport(title="PowerMouse", width=1280, height=720)
+    dpg.create_viewport(
+        title="PowerMouse",
+        width=viewport_width,
+        height=viewport_height,
+    )
     dpg.setup_dearpygui()
     dpg.show_viewport()
 

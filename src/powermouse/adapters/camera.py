@@ -21,6 +21,30 @@ def _platform_backend() -> int:
     return cv2.CAP_ANY
 
 
+def _capture_index(camera_id: str, backend: int) -> int:
+    """Return the OpenCV device index for a persisted camera id.
+
+    ``cv2-enumerate-cameras`` encodes default-backend camera ids as
+    ``backend + index`` when called with ``CAP_ANY``. Older PowerMouse builds
+    persisted those encoded ids (e.g. ``1200`` for macOS AVFoundation camera
+    index ``0``), but this adapter opens cameras with an explicit backend. In
+    that mode OpenCV expects the plain device index, not the encoded id.
+    """
+    try:
+        index = int(camera_id)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"Camera id must be an integer-like string, got {camera_id!r}"
+        ) from exc
+
+    if backend != cv2.CAP_ANY and index >= backend:
+        normalized = index - backend
+        if 0 <= normalized < 100:
+            return normalized
+
+    return index
+
+
 class OpenCVCameraController(CameraController):
     """OpenCV-backed CameraController using cv2.VideoCapture."""
 
@@ -32,12 +56,7 @@ class OpenCVCameraController(CameraController):
     def start_stream(self) -> None:
         if self._capture is not None and self._capture.isOpened():
             return
-        try:
-            index = int(self.camera.id)
-        except (TypeError, ValueError) as exc:
-            raise ValueError(
-                f"Camera id must be an integer-like string, got {self.camera.id!r}"
-            ) from exc
+        index = _capture_index(self.camera.id, self._backend)
         cap = cv2.VideoCapture(index, self._backend)
         if not cap.isOpened():
             cap.release()

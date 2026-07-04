@@ -58,6 +58,18 @@ class ProfilesWidget:
             return None
         return self._profiles.get(self._selected_id)
 
+    def new_profile(self) -> None:
+        """Duplicate the selected profile."""
+        self._on_new()
+
+    def delete_selected(self) -> None:
+        """Delete the selected profile."""
+        self._on_delete()
+
+    def set_active_selected(self) -> None:
+        """Make the selected profile active."""
+        self._on_set_active()
+
     def _reload_list(self) -> None:
         """Re-read profiles from DB, preserving in-memory edits for ids that still exist."""
         db_profiles = self._manager.list_profiles()
