@@ -93,6 +93,34 @@ class TestTrackingStep:
         assert events[3].event_type is MouseEventType.BUTTON_DOWN
         assert events[4].event_type is MouseEventType.BUTTON_UP
 
+    def test_drains_but_does_not_dispatch_gestures_when_clicking_disabled(
+        self,
+        sync_dispatch,
+        fake_camera_controller,
+        recording_mouse_controller,
+    ):
+        from tests.conftest import FakeInferenceController
+
+        inference = FakeInferenceController(
+            cursor=(7, 9),
+            gestures=[GestureEvent.LEFT_BLINK, GestureEvent.RIGHT_BLINK],
+        )
+        translator = GestureToMouseTranslator()
+
+        track_face.tracking_step(
+            camera_controller=fake_camera_controller,
+            inference_controller=inference,
+            mouse_controller=recording_mouse_controller,
+            gesture_translator=translator,
+            frame_processor=lambda *_: None,
+            gesture_clicking_enabled=lambda: False,
+        )
+
+        events = recording_mouse_controller.events
+        assert len(events) == 1
+        assert events[0].event_type is MouseEventType.MOVE
+        assert inference.detect_gesture() is None
+
 
 class TestUpdateCamera:
     def test_stops_streams_and_persists_camera_swap(

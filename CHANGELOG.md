@@ -1,5 +1,6 @@
 # Changelog
 
-## v0.0.8
+## v0.1.0
 
-- Fixed a crash that occurs when the user's default camera is already in use.
+- Several improvements to UI/UX.
+- Face tracking now works correctly.

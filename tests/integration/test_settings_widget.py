@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import dearpygui.dearpygui as dpg
+import numpy as np
 import pytest
 
+from powermouse.domain.models.camera import Camera
 from powermouse.domain.models.mouse import ClickInterface
+from powermouse.domain.usecases.gesture_mapping import GESTURE_CLICK_CHEAT_SHEET
 from powermouse.widgets.settings import (
     ClickingSettingsWidget,
     SettingsWidget,
@@ -70,12 +73,46 @@ class TestClickingSettingsWidget:
         assert dpg.get_value(widget.HIGH_TAG) == pytest.approx(0.7)
         assert dpg.get_value(widget.LOW_TAG) == pytest.approx(0.3)
 
-    def test_toggle_callback_updates_profile(self, dpg_root, sample_profile):
+    def test_only_gesture_clicking_checkbox_is_enabled(self, dpg_root):
+        widget = ClickingSettingsWidget()
+        widget.build(dpg_root)
+
+        assert (
+            dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.GESTURE])[
+                "enabled"
+            ]
+            is True
+        )
+        assert (
+            dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.DWELL])[
+                "enabled"
+            ]
+            is False
+        )
+        assert (
+            dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.VOICE])[
+                "enabled"
+            ]
+            is False
+        )
+
+    def test_toggle_callback_updates_gesture_profile(self, dpg_root, sample_profile):
+        widget = ClickingSettingsWidget()
+        widget.build(dpg_root)
+        widget.bind(sample_profile)
+        widget._make_on_toggle(ClickInterface.GESTURE)(None, False, None)
+        assert not sample_profile.is_click_interface_enabled(ClickInterface.GESTURE)
+
+    def test_disabled_toggle_callback_ignores_unsupported_interfaces(
+        self, dpg_root, sample_profile
+    ):
         widget = ClickingSettingsWidget()
         widget.build(dpg_root)
         widget.bind(sample_profile)
         widget._make_on_toggle(ClickInterface.DWELL)(None, True, None)
-        assert sample_profile.is_click_interface_enabled(ClickInterface.DWELL)
+        widget._make_on_toggle(ClickInterface.VOICE)(None, True, None)
+        assert not sample_profile.is_click_interface_enabled(ClickInterface.DWELL)
+        assert not sample_profile.is_click_interface_enabled(ClickInterface.VOICE)
 
     def test_threshold_callbacks_update_settings(self, dpg_root, sample_profile):
         widget = ClickingSettingsWidget()
@@ -85,6 +122,14 @@ class TestClickingSettingsWidget:
         widget._on_low(None, 0.15, None)
         assert sample_profile.face_tracker_settings.click_threshold_high == 0.85
         assert sample_profile.face_tracker_settings.click_threshold_low == 0.15
+
+    def test_build_adds_gesture_clicking_cheat_sheet(self, dpg_root):
+        widget = ClickingSettingsWidget()
+        widget.build(dpg_root)
+
+        assert dpg.does_item_exist(widget.CHEAT_SHEET_GROUP_TAG)
+        sheet_items = dpg.get_item_children(widget.CHEAT_SHEET_GROUP_TAG, slot=1) or []
+        assert len(sheet_items) == len(GESTURE_CLICK_CHEAT_SHEET) * 2
 
 
 class TestSettingsWidget:
@@ -110,6 +155,59 @@ class TestSettingsWidget:
         reloaded = populated_profile_manager.get_profile(str(profile.profile_id))
         assert reloaded.face_tracker_settings.speed == 4.2
         assert saved == [profile]
+
+    def test_save_preserves_camera_changed_elsewhere(
+        self, dpg_root, populated_profile_manager
+    ):
+        tracking = TrackingSettingsWidget()
+        clicking = ClickingSettingsWidget()
+        widget = SettingsWidget(
+            profile_manager=populated_profile_manager,
+            tracking=tracking,
+            clicking=clicking,
+        )
+        widget.build(dpg_root)
+        profile = populated_profile_manager.list_profiles()[0]
+        widget.bind(profile)
+
+        updated = populated_profile_manager.get_profile(str(profile.profile_id))
+        updated.face_tracker_settings.camera = Camera(
+            name="Other",
+            id="1",
+            fps=30.0,
+            current_frame=np.zeros((1, 1, 3), dtype=np.uint8),
+            frame_width=1,
+            frame_height=1,
+        )
+        populated_profile_manager.update_profile(updated.profile_id, updated)
+
+        tracking._on_speed(None, 4.2, None)
+        widget._save()
+
+        reloaded = populated_profile_manager.get_profile(str(profile.profile_id))
+        assert reloaded.face_tracker_settings.speed == 4.2
+        assert reloaded.face_tracker_settings.camera.id == "1"
+
+    def test_save_persists_disabled_gesture_clicking(
+        self, dpg_root, populated_profile_manager
+    ):
+        tracking = TrackingSettingsWidget()
+        clicking = ClickingSettingsWidget()
+        widget = SettingsWidget(
+            profile_manager=populated_profile_manager,
+            tracking=tracking,
+            clicking=clicking,
+        )
+        widget.build(dpg_root)
+        profile = populated_profile_manager.list_profiles()[0]
+        widget.bind(profile)
+
+        clicking._make_on_toggle(ClickInterface.GESTURE)(None, False, None)
+        assert widget.is_gesture_clicking_enabled() is False
+        widget._save()
+
+        reloaded = populated_profile_manager.get_profile(str(profile.profile_id))
+        assert not reloaded.is_click_interface_enabled(ClickInterface.GESTURE)
 
     def test_revert_restores_persisted_state(
         self, dpg_root, populated_profile_manager

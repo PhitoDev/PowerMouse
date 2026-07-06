@@ -91,6 +91,37 @@ class TestCameraWidget:
         widget.update_frame(np.zeros((0, 0, 3), dtype=np.uint8), 0)
         widget.update_frame(None, 0)  # type: ignore[arg-type]
 
+    def test_combo_change_persists_camera_and_notifies_listener(
+        self,
+        dpg_root,
+        camera,
+        fake_camera_controller,
+        fake_inference_controller,
+        populated_profile_manager,
+    ):
+        other = _make_camera(name="Other", id="1")
+        changed: list[Camera] = []
+        widget = CameraWidget(
+            camera_controller=fake_camera_controller,
+            inference_controller=fake_inference_controller,
+            profile_manager=populated_profile_manager,
+            current_camera=camera,
+            cameras=[camera, other],
+            panel_width=320,
+            image_width=64,
+            image_height=48,
+            on_camera_changed=changed.append,
+        )
+        widget.build(dpg_root)
+
+        dpg.set_value(widget.CAMERA_TAG, other.name)
+        widget._on_combo_change()
+
+        reloaded = populated_profile_manager.get_active_profile()
+        assert reloaded.face_tracker_settings.camera.id == other.id
+        assert reloaded.face_tracker_settings.camera.name == other.name
+        assert changed == [other]
+
 
 class TestCameraWidgetRecovery:
     """Recovery panel that's shown when the camera can't be opened."""

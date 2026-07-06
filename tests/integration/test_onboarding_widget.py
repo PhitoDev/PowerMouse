@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import dearpygui.dearpygui as dpg
 import pytest
+from sqlalchemy import create_engine, text
 
+from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.widgets.onboarding import OnboardingDialog
 
 
@@ -70,3 +72,23 @@ class TestOnboardingDialog:
         assert len(persisted) == 1
         assert persisted[0].name == "MyProfile"
         assert persisted[0].face_tracker_settings.camera.id == camera.id
+        assert persisted[0].face_tracker_settings.speed == 3.0
+        assert persisted[0].face_tracker_settings.acceleration == 3.0
+
+    def test_existing_profile_on_legacy_defaults_is_upgraded(
+        self, tmp_path, sample_profile
+    ):
+        db_url = f"sqlite:///{tmp_path / 'profiles.db'}"
+        manager = SqlAlchemyProfileManager(db_url=db_url)
+        sample_profile.face_tracker_settings.speed = 1.0
+        sample_profile.face_tracker_settings.acceleration = 1.5
+        created = manager.create_profile(sample_profile)
+        engine = create_engine(db_url, future=True)
+        with engine.begin() as conn:
+            conn.execute(text("PRAGMA user_version = 0"))
+
+        reloaded_manager = SqlAlchemyProfileManager(db_url=db_url)
+        reloaded = reloaded_manager.get_profile(str(created.profile_id))
+
+        assert reloaded.face_tracker_settings.speed == 3.0
+        assert reloaded.face_tracker_settings.acceleration == 3.0

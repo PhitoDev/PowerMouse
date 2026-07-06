@@ -27,11 +27,13 @@ class TestCamera:
 
 class TestFaceTrackerSettings:
     def test_defaults(self, face_tracker_settings: FaceTrackerSettings):
-        assert face_tracker_settings.speed == 1.0
-        assert face_tracker_settings.acceleration == 1.5
+        assert face_tracker_settings.speed == 3.0
+        assert face_tracker_settings.acceleration == 3.0
         assert face_tracker_settings.sensitivity == (1.0, 1.0)
         assert face_tracker_settings.smoothness == 0.5
         assert face_tracker_settings.deadzone_radius_px == 5
+        assert face_tracker_settings.active_area_x == (0.0, 1.0)
+        assert face_tracker_settings.active_area_y == (0.0, 1.0)
         assert face_tracker_settings.click_threshold_high == 0.6
         assert face_tracker_settings.click_threshold_low == 0.4
 
