@@ -1,4 +1,5 @@
 import time
+from typing import Callable
 
 from powermouse.domain.controllers import camera, inference, mouse, profile
 from powermouse.domain.models.mouse import MouseButton, MouseEvent, MouseEventType
@@ -15,6 +16,7 @@ def tracking_step(
     mouse_controller: mouse.MouseController,
     gesture_translator: GestureToMouseTranslator,
     frame_processor,
+    gesture_clicking_enabled: Callable[[], bool] = lambda: True,
 ):
     try:
         camera_controller.update_frame()
@@ -38,11 +40,15 @@ def tracking_step(
         ),
     )
 
-    # Drain any queued gestures and dispatch their mouse events.
+    # Drain any queued gestures and dispatch their mouse events when gesture
+    # clicking is enabled. Gestures are still drained while disabled so old
+    # queued clicks do not fire later when the user re-enables the interface.
     while True:
         gesture = inference_controller.detect_gesture()
         if gesture is None:
             break
+        if not gesture_clicking_enabled():
+            continue
         for event in gesture_translator.translate(gesture, cursor):
             _dispatch(mouse_controller, event)
 

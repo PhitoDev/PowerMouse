@@ -21,6 +21,8 @@ FONT_PATH = os.path.join(
 assert os.path.exists(FONT_PATH), f"Font file not found: {FONT_PATH}"
 
 FONT_SIZE = 25
+BODY_FONT_SIZE = 21
+SECTION_FONT_SIZE = 27
 
 # -- Lakers palette ------------------------------------------------------
 
@@ -34,17 +36,23 @@ STATUS_RED = (170, 40, 40, 255)  # readable on off-white
 # -- module state --------------------------------------------------------
 
 _font_id: Optional[int] = None
+_font_ids: dict[tuple[str, int], int] = {}
 _theme_id: Optional[int] = None
 
 
-def load_font() -> int:
+def load_font(path: str = FONT_PATH, size: int = FONT_SIZE) -> int:
     """Register (or return cached) global font id."""
-    global _font_id
-    if _font_id is not None and dpg.does_item_exist(_font_id):
-        return _font_id
+    global _font_id, _font_ids
+    key = (path, size)
+    font_id = _font_ids.get(key)
+    if font_id is not None and dpg.does_item_exist(font_id):
+        return font_id
     with dpg.font_registry():
-        _font_id = dpg.add_font(FONT_PATH, FONT_SIZE)
-    return _font_id
+        font_id = dpg.add_font(path, size)
+    _font_ids[key] = font_id
+    if path == FONT_PATH and size == FONT_SIZE:
+        _font_id = font_id
+    return font_id
 
 
 def apply_theme() -> None:

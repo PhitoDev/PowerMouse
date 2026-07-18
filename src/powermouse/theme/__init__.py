@@ -8,6 +8,8 @@ _mod = _import_module("powermouse.theme.global")
 
 FONT_PATH = _mod.FONT_PATH
 FONT_SIZE = _mod.FONT_SIZE
+BODY_FONT_SIZE = _mod.BODY_FONT_SIZE
+SECTION_FONT_SIZE = _mod.SECTION_FONT_SIZE
 LAKERS_PURPLE = _mod.LAKERS_PURPLE
 LAKERS_GOLD = _mod.LAKERS_GOLD
 LAKERS_GOLD_SOFT = _mod.LAKERS_GOLD_SOFT
@@ -21,6 +23,8 @@ setup_theme = _mod.setup_theme
 __all__ = [
     "FONT_PATH",
     "FONT_SIZE",
+    "BODY_FONT_SIZE",
+    "SECTION_FONT_SIZE",
     "LAKERS_PURPLE",
     "LAKERS_GOLD",
     "LAKERS_GOLD_SOFT",

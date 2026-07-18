@@ -8,6 +8,7 @@ import dearpygui.dearpygui as dpg
 
 from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.domain.models.profile import Profile
+from powermouse.widgets.style import add_panel_heading, add_section_heading
 
 
 class ProfilesWidget:
@@ -20,9 +21,11 @@ class ProfilesWidget:
         self,
         profile_manager: SqlAlchemyProfileManager,
         on_selection_changed: Callable[[Profile], None],
+        on_active_changed: Callable[[Profile | None], None] = lambda _p: None,
     ):
         self._manager = profile_manager
         self._on_selection_changed = on_selection_changed
+        self._on_active_changed = on_active_changed
         self._profiles: Dict[int, Profile] = {}
         self._selected_id: Optional[int] = None
 
@@ -30,11 +33,11 @@ class ProfilesWidget:
 
     def build(self, parent: str) -> None:
         with dpg.child_window(tag=self.TAG, parent=parent, width=240, border=True):
-            dpg.add_text("Profiles")
-            dpg.add_separator()
+            add_panel_heading(self.TAG, "Profiles")
             dpg.add_group(tag=self.LIST_TAG)
             dpg.add_spacer(height=8)
             dpg.add_separator()
+            add_section_heading(self.TAG, "Actions")
             dpg.add_button(label="New Profile", width=-1, callback=self._on_new)
             dpg.add_button(label="Set Active", width=-1, callback=self._on_set_active)
             dpg.add_button(label="Delete", width=-1, callback=self._on_delete)
@@ -143,13 +146,21 @@ class ProfilesWidget:
         if self._selected_id is None:
             return
         pid = self._selected_id
+        deleted_active = bool(self._profiles[pid].is_active)
         self._manager.delete_profile(pid)
         self._profiles.pop(pid, None)
         self._selected_id = None
         self._rebuild_list_items()
         # Pick a fallback selection.
         if self._profiles:
-            self._select(next(iter(sorted(self._profiles))))
+            fallback = self._profiles[next(iter(sorted(self._profiles)))]
+            if deleted_active:
+                fallback.is_active = True
+                self._manager.update_profile(fallback.profile_id, fallback)
+                self._on_active_changed(fallback)
+            self._select(fallback.profile_id)
+        elif deleted_active:
+            self._on_active_changed(None)
 
     def _on_set_active(self, *_):
         profile = self.current
@@ -160,3 +171,4 @@ class ProfilesWidget:
             p.is_active = (p.profile_id == profile.profile_id)
         self._manager.update_profile(profile.profile_id, profile)
         self._rebuild_list_items()
+        self._on_active_changed(profile)

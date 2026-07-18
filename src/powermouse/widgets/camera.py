@@ -1,7 +1,7 @@
 # pyright: reportGeneralTypeIssues=false, reportArgumentType=false
 from __future__ import annotations
 
-from typing import Optional
+from typing import Callable, Optional
 
 import cv2
 import dearpygui.dearpygui as dpg
@@ -13,6 +13,13 @@ from powermouse.domain.controllers.inference import InferenceController
 from powermouse.domain.controllers.profile import ProfileManager
 from powermouse.domain.models.camera import Camera
 from powermouse.domain.usecases.track_face import swap_camera, try_start_camera
+from powermouse.widgets.style import (
+    add_alert_heading,
+    add_body_text,
+    add_field_label,
+    add_panel_heading,
+    add_section_heading,
+)
 
 
 class CameraWidget:
@@ -28,6 +35,7 @@ class CameraWidget:
     TAG = "camera_panel"
     TEXTURE_TAG = "camera_texture"
     CAMERA_TAG = "camera_combo"
+    FPS_TAG = "camera_fps"
     PREVIEW_GROUP_TAG = "camera_preview_group"
     RECOVERY_GROUP_TAG = "camera_recovery_group"
     RECOVERY_TITLE_TAG = "camera_recovery_title"
@@ -36,6 +44,7 @@ class CameraWidget:
     RECOVERY_DETAILS_TAG = "camera_recovery_details"
     RECOVERY_USE_TAG = "camera_recovery_use"
     RECOVERY_REFRESH_TAG = "camera_recovery_refresh"
+    PANEL_INNER_PADDING_PX = 32
 
     def __init__(
         self,
@@ -48,8 +57,14 @@ class CameraWidget:
         panel_width: int = 640,
         image_width: int = 624,
         image_height: int = 352,
+        on_camera_changed: Callable[[Camera], None] = lambda _camera: None,
     ):
         self._panel_w = panel_width
+        content_w = max(1, panel_width - self.PANEL_INNER_PADDING_PX)
+        if image_width > content_w:
+            image_height = max(1, int(image_height * (content_w / image_width)))
+            image_width = content_w
+        self._content_w = content_w
         self._img_w = image_width
         self._img_h = image_height
         self._blank = np.zeros(self._img_w * self._img_h * 4, dtype=np.float32)
@@ -59,6 +74,8 @@ class CameraWidget:
         self._device_manager = device_manager
         self._cameras = cameras
         self._current_camera = current_camera
+        self._on_camera_changed = on_camera_changed
+        self._last_frame_timestamp_ms: Optional[int] = None
         self._selected_recovery: Optional[Camera] = None
         self._last_failure: Optional[str] = None
         self.in_recovery = False
@@ -82,56 +99,63 @@ class CameraWidget:
         ):
             # Normal preview group
             with dpg.group(tag=self.PREVIEW_GROUP_TAG):
+                add_panel_heading(self.PREVIEW_GROUP_TAG, "Camera")
+                add_field_label(self.PREVIEW_GROUP_TAG, "Current Camera")
                 dpg.add_combo(
-                    label="Current Camera",
+                    label="",
                     items=[cam.name for cam in self._cameras],
                     tag=self.CAMERA_TAG,
                     default_value=self._current_camera.name,
-                    width=self._panel_w,
+                    width=-1,
                     callback=self._on_combo_change,
                 )
                 dpg.add_separator()
-                dpg.add_text("Camera Preview")
-                dpg.add_separator()
+                add_section_heading(self.PREVIEW_GROUP_TAG, "Camera Preview")
                 dpg.add_image(self.TEXTURE_TAG)
                 dpg.add_separator()
-                dpg.add_text(f"FPS: {self._current_camera.fps}")
+                add_body_text(
+                    self.PREVIEW_GROUP_TAG,
+                    "FPS: 0.0",
+                    tag=self.FPS_TAG,
+                )
 
             # Recovery panel (hidden until needed)
             with dpg.group(tag=self.RECOVERY_GROUP_TAG, show=False):
-                dpg.add_text(
+                add_alert_heading(
+                    self.RECOVERY_GROUP_TAG,
                     "We couldn't reach your camera",
                     tag=self.RECOVERY_TITLE_TAG,
-                    color=(248, 81, 73),
                 )
-                dpg.add_text(
+                add_body_text(
+                    self.RECOVERY_GROUP_TAG,
                     "PowerMouse is paused until a working camera is selected.",
                     tag=self.RECOVERY_BODY_TAG,
-                    wrap=self._panel_w - 20,
+                    wrap=self._content_w,
                 )
                 dpg.add_separator()
-                dpg.add_text("Available cameras:")
+                add_section_heading(self.RECOVERY_GROUP_TAG, "Available cameras")
                 with dpg.group(tag=self.RECOVERY_LIST_TAG):
                     pass  # populated dynamically
                 dpg.add_separator()
-                with dpg.group(horizontal=True):
-                    dpg.add_button(
-                        label="Refresh devices",
-                        tag=self.RECOVERY_REFRESH_TAG,
-                        callback=self._on_refresh_devices,
-                    )
-                    dpg.add_button(
-                        label="Use this camera",
-                        tag=self.RECOVERY_USE_TAG,
-                        callback=self._on_use_selected,
-                        enabled=False,
-                    )
+                dpg.add_button(
+                    label="Refresh devices",
+                    tag=self.RECOVERY_REFRESH_TAG,
+                    width=-1,
+                    callback=self._on_refresh_devices,
+                )
+                dpg.add_button(
+                    label="Use this camera",
+                    tag=self.RECOVERY_USE_TAG,
+                    width=-1,
+                    callback=self._on_use_selected,
+                    enabled=False,
+                )
                 dpg.add_separator()
                 dpg.add_text(
                     "",
                     tag=self.RECOVERY_DETAILS_TAG,
                     color=(139, 148, 158),
-                    wrap=self._panel_w - 20,
+                    wrap=self._content_w,
                 )
 
     # ------------------------------------------------------------------
@@ -162,11 +186,20 @@ class CameraWidget:
     # Frame updates
     # ------------------------------------------------------------------
 
-    def update_frame(self, frame_bgr: np.ndarray, timestamp_ms: int) -> None:  # noqa: ARG002
+    def update_frame(self, frame_bgr: np.ndarray, timestamp_ms: int) -> None:
         if frame_bgr is None or frame_bgr.size == 0:
             return
         if self.in_recovery:
             return
+        fps = 0.0
+        if (
+            self._last_frame_timestamp_ms is not None
+            and timestamp_ms > self._last_frame_timestamp_ms
+        ):
+            fps = 1000.0 / (timestamp_ms - self._last_frame_timestamp_ms)
+        self._last_frame_timestamp_ms = timestamp_ms
+        dpg.set_value(self.FPS_TAG, f"FPS: {fps:.1f}")
+
         resized = cv2.resize(
             frame_bgr, (self._img_w, self._img_h), interpolation=cv2.INTER_AREA
         )
@@ -193,6 +226,7 @@ class CameraWidget:
         )
         if ok:
             self._current_camera = cam
+            self._on_camera_changed(cam)
             self._hide_recovery()
         else:
             self._show_recovery(reason)
@@ -203,6 +237,7 @@ class CameraWidget:
 
     def _show_recovery(self, reason: Optional[str]) -> None:
         self.in_recovery = True
+        self._last_frame_timestamp_ms = None
         self._last_failure = reason
         if dpg.does_item_exist(self.RECOVERY_GROUP_TAG):
             dpg.show_item(self.RECOVERY_GROUP_TAG)
@@ -297,6 +332,7 @@ class CameraWidget:
         )
         if ok:
             self._current_camera = cam
+            self._on_camera_changed(cam)
             if cam not in self._cameras:
                 self._cameras.append(cam)
             self._hide_recovery()

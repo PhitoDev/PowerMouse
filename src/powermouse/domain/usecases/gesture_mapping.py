@@ -8,70 +8,48 @@ from __future__ import annotations
 from typing import List
 
 from powermouse.domain.models.gesture import GestureEvent
-from powermouse.domain.models.mouse import MouseButton, MouseEvent, MouseEventType
+from powermouse.domain.models.mouse import ClickInterface, MouseButton, MouseEvent
+from powermouse.domain.usecases.mouse_actions import MouseActionCoordinator
 
 
-def _click(button: MouseButton, x: int = 0, y: int = 0) -> List[MouseEvent]:
-    """Produce a full press+release pair at the given position."""
-    return [
-        MouseEvent(button=button, x=x, y=y, event_type=MouseEventType.BUTTON_DOWN),
-        MouseEvent(button=button, x=x, y=y, event_type=MouseEventType.BUTTON_UP),
-    ]
+GESTURE_CLICK_CHEAT_SHEET = [
+    ("Wink left eye", "Left click"),
+    ("Wink right eye", "Right click"),
+    ("Squint left eye", "Double click"),
+    ("Squint right eye", "Toggle hold right click (drag)"),
+    ("Raise eyebrows", "Middle click"),
+    ("Open jaw", "Toggle hold left click (drag)"),
+]
 
 
 class GestureToMouseTranslator:
     """Map GestureEvents to MouseEvent sequences per docs/architecture.md §4.2
     and requirements §4 (Gesture Clicking)."""
 
-    def __init__(self) -> None:
-        self._left_hold_active: bool = False
-        self._right_hold_active: bool = False
+    def __init__(self, coordinator: MouseActionCoordinator | None = None) -> None:
+        self.coordinator = coordinator or MouseActionCoordinator()
 
     def translate(self, gesture: GestureEvent, cursor: tuple[int, int]) -> List[MouseEvent]:
-        x, y = cursor
         match gesture:
             case GestureEvent.LEFT_BLINK:
-                return _click(MouseButton.LEFT, x, y)
+                return self.coordinator.click(MouseButton.LEFT, cursor)
             case GestureEvent.RIGHT_BLINK:
-                return _click(MouseButton.RIGHT, x, y)
+                return self.coordinator.click(MouseButton.RIGHT, cursor)
             case GestureEvent.LEFT_SQUINT:
-                # Double click: two press/release pairs.
-                return _click(MouseButton.LEFT, x, y) + _click(MouseButton.LEFT, x, y)
+                return self.coordinator.click(MouseButton.LEFT, cursor, 2)
             case GestureEvent.RAISED_EYEBROWS:
-                return _click(MouseButton.MIDDLE, x, y)
+                return self.coordinator.click(MouseButton.MIDDLE, cursor)
             case GestureEvent.OPEN_MOUTH:
-                # Toggle holding left click.
-                self._left_hold_active = not self._left_hold_active
-                event_type = (
-                    MouseEventType.BUTTON_DOWN
-                    if self._left_hold_active
-                    else MouseEventType.BUTTON_UP
-                )
-                return [MouseEvent(button=MouseButton.LEFT, x=x, y=y, event_type=event_type)]
+                if self.coordinator.is_owned(ClickInterface.GESTURE, MouseButton.LEFT):
+                    return self.coordinator.release(ClickInterface.GESTURE, MouseButton.LEFT, cursor)
+                return self.coordinator.acquire(ClickInterface.GESTURE, MouseButton.LEFT, cursor)
             case GestureEvent.RIGHT_SQUINT:
-                # Toggle holding right click.
-                self._right_hold_active = not self._right_hold_active
-                event_type = (
-                    MouseEventType.BUTTON_DOWN
-                    if self._right_hold_active
-                    else MouseEventType.BUTTON_UP
-                )
-                return [MouseEvent(button=MouseButton.RIGHT, x=x, y=y, event_type=event_type)]
+                if self.coordinator.is_owned(ClickInterface.GESTURE, MouseButton.RIGHT):
+                    return self.coordinator.release(ClickInterface.GESTURE, MouseButton.RIGHT, cursor)
+                return self.coordinator.acquire(ClickInterface.GESTURE, MouseButton.RIGHT, cursor)
             case _:
                 return []
 
     def reset_holds(self, cursor: tuple[int, int]) -> List[MouseEvent]:
         """Return events that release any active holds. Call when tracking stops."""
-        x, y = cursor
-        events: List[MouseEvent] = []
-        if self._left_hold_active:
-            self._left_hold_active = False
-            events.append(
-                MouseEvent(button=MouseButton.LEFT, x=x, y=y, event_type=MouseEventType.BUTTON_UP)
-            )
-        if self._right_hold_active:
-            self._right_hold_active = False
-            events.append(
-                MouseEvent(button=MouseButton.RIGHT, x=x, y=y, event_type=MouseEventType.BUTTON_UP)
-            )
-        return events
+        return self.coordinator.release_all(ClickInterface.GESTURE, cursor)

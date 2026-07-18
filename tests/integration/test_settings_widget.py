@@ -1,18 +1,39 @@
 """Integration tests for the settings widgets."""
 from __future__ import annotations
 
+import copy
+
 import dearpygui.dearpygui as dpg
 import numpy as np
 import pytest
 
+from powermouse.domain.controllers.voice import MicrophoneManager
 from powermouse.domain.models.camera import Camera
 from powermouse.domain.models.mouse import ClickInterface
+from powermouse.domain.models.microphone import Microphone
 from powermouse.domain.usecases.gesture_mapping import GESTURE_CLICK_CHEAT_SHEET
+from powermouse.domain.usecases.voice_clicking import (
+    CLICK_PHRASES,
+    HOLD_PHRASES,
+    RELEASE_PHRASES,
+)
 from powermouse.widgets.settings import (
     ClickingSettingsWidget,
     SettingsWidget,
     TrackingSettingsWidget,
 )
+
+
+class FakeMicrophoneManager(MicrophoneManager):
+    def __init__(self, microphones, default=None):
+        self.microphones = microphones
+        self.default = default
+
+    def get_microphones(self):
+        return list(self.microphones)
+
+    def get_default_microphone(self):
+        return self.default
 
 
 class TestTrackingSettingsWidget:
@@ -73,7 +94,7 @@ class TestClickingSettingsWidget:
         assert dpg.get_value(widget.HIGH_TAG) == pytest.approx(0.7)
         assert dpg.get_value(widget.LOW_TAG) == pytest.approx(0.3)
 
-    def test_only_gesture_clicking_checkbox_is_enabled(self, dpg_root):
+    def test_gesture_and_voice_clicking_checkboxes_are_enabled(self, dpg_root):
         widget = ClickingSettingsWidget()
         widget.build(dpg_root)
 
@@ -93,7 +114,7 @@ class TestClickingSettingsWidget:
             dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.VOICE])[
                 "enabled"
             ]
-            is False
+            is True
         )
 
     def test_toggle_callback_updates_gesture_profile(self, dpg_root, sample_profile):
@@ -102,8 +123,18 @@ class TestClickingSettingsWidget:
         widget.bind(sample_profile)
         widget._make_on_toggle(ClickInterface.GESTURE)(None, False, None)
         assert not sample_profile.is_click_interface_enabled(ClickInterface.GESTURE)
+        assert (
+            dpg.get_item_configuration(widget.GESTURE_SETTINGS_TAG)["enabled"]
+            is False
+        )
 
-    def test_disabled_toggle_callback_ignores_unsupported_interfaces(
+        widget._make_on_toggle(ClickInterface.GESTURE)(None, True, None)
+        assert (
+            dpg.get_item_configuration(widget.GESTURE_SETTINGS_TAG)["enabled"]
+            is True
+        )
+
+    def test_disabled_toggle_callback_ignores_only_unsupported_interfaces(
         self, dpg_root, sample_profile
     ):
         widget = ClickingSettingsWidget()
@@ -112,7 +143,7 @@ class TestClickingSettingsWidget:
         widget._make_on_toggle(ClickInterface.DWELL)(None, True, None)
         widget._make_on_toggle(ClickInterface.VOICE)(None, True, None)
         assert not sample_profile.is_click_interface_enabled(ClickInterface.DWELL)
-        assert not sample_profile.is_click_interface_enabled(ClickInterface.VOICE)
+        assert sample_profile.is_click_interface_enabled(ClickInterface.VOICE)
 
     def test_threshold_callbacks_update_settings(self, dpg_root, sample_profile):
         widget = ClickingSettingsWidget()
@@ -123,13 +154,115 @@ class TestClickingSettingsWidget:
         assert sample_profile.face_tracker_settings.click_threshold_high == 0.85
         assert sample_profile.face_tracker_settings.click_threshold_low == 0.15
 
-    def test_build_adds_gesture_clicking_cheat_sheet(self, dpg_root):
+    def test_build_moves_clicking_instructions_into_info_popups(self, dpg_root):
         widget = ClickingSettingsWidget()
         widget.build(dpg_root)
 
         assert dpg.does_item_exist(widget.CHEAT_SHEET_GROUP_TAG)
+        assert dpg.does_item_exist(widget.VOICE_INSTRUCTIONS_TAG)
         sheet_items = dpg.get_item_children(widget.CHEAT_SHEET_GROUP_TAG, slot=1) or []
         assert len(sheet_items) == len(GESTURE_CLICK_CHEAT_SHEET) * 2
+
+    def test_voice_instructions_group_commands_by_action(self, dpg_root):
+        widget = ClickingSettingsWidget()
+        widget.build(dpg_root)
+
+        text_values: list[str] = []
+
+        def collect_text(item) -> None:
+            for slot in range(4):
+                for child in dpg.get_item_children(item, slot=slot) or []:
+                    if dpg.get_item_type(child) == "mvAppItemType::mvText":
+                        text_values.append(dpg.get_value(child))
+                    collect_text(child)
+
+        collect_text(widget.VOICE_INSTRUCTIONS_TAG)
+
+        assert "Click" in text_values
+        assert "Start dragging" in text_values
+        assert "Stop dragging" in text_values
+        assert "click, left click" in text_values
+        assert "hold click, hold left click, start drag, start left drag" in text_values
+        assert (
+            "release click, release left click, stop drag, stop left drag"
+            in text_values
+        )
+        displayed_phrases = {
+            phrase
+            for text in text_values
+            for phrase in text.split(", ")
+            if phrase in {*CLICK_PHRASES, *HOLD_PHRASES, *RELEASE_PHRASES}
+        }
+        assert displayed_phrases == {
+            *CLICK_PHRASES,
+            *HOLD_PHRASES,
+            *RELEASE_PHRASES,
+        }
+
+    def test_bind_enables_only_settings_for_selected_modes(
+        self, dpg_root, sample_profile
+    ):
+        widget = ClickingSettingsWidget()
+        widget.build(dpg_root)
+        sample_profile.toggle_click_interface(ClickInterface.GESTURE, True)
+        sample_profile.toggle_click_interface(ClickInterface.VOICE, False)
+
+        widget.bind(sample_profile)
+
+        assert (
+            dpg.get_item_configuration(widget.GESTURE_SETTINGS_TAG)["enabled"]
+            is True
+        )
+        assert (
+            dpg.get_item_configuration(widget.VOICE_SETTINGS_TAG)["enabled"]
+            is False
+        )
+
+    def test_microphone_dropdown_uses_system_default_without_selecting_first(
+        self, dpg_root, sample_profile
+    ):
+        default = Microphone("2", "Default Microphone")
+        manager = FakeMicrophoneManager(
+            [Microphone("1", "Other Microphone"), default],
+            default=default,
+        )
+        widget = ClickingSettingsWidget(manager)
+        widget.build(dpg_root)
+        widget.bind(sample_profile)
+
+        assert sample_profile.microphone is None
+        assert dpg.get_value(widget.MICROPHONE_TAG).startswith("System default")
+
+    def test_microphone_dropdown_rebinds_changed_index_by_unique_name(
+        self, dpg_root, sample_profile
+    ):
+        sample_profile.microphone = Microphone("8", "USB Microphone")
+        manager = FakeMicrophoneManager([Microphone("3", "USB Microphone")])
+        widget = ClickingSettingsWidget(manager)
+        widget.build(dpg_root)
+        widget.bind(sample_profile)
+
+        assert sample_profile.microphone == Microphone("3", "USB Microphone")
+        assert dpg.get_value(widget.MICROPHONE_TAG) == "USB Microphone (id: 3)"
+
+    def test_failed_microphone_switch_restores_previous_selection(
+        self, dpg_root, sample_profile
+    ):
+        first = Microphone("1", "First")
+        second = Microphone("2", "Second")
+        sample_profile.microphone = first
+        manager = FakeMicrophoneManager([first, second], default=first)
+        widget = ClickingSettingsWidget(
+            manager,
+            on_voice_changed=lambda _profile: False,
+        )
+        widget.build(dpg_root)
+        widget.bind(sample_profile)
+
+        widget._on_microphone(None, widget._label(second), None)
+
+        assert sample_profile.microphone == first
+        assert dpg.get_value(widget.MICROPHONE_TAG) == widget._label(first)
 
 
 class TestSettingsWidget:
@@ -209,6 +342,29 @@ class TestSettingsWidget:
         reloaded = populated_profile_manager.get_profile(str(profile.profile_id))
         assert not reloaded.is_click_interface_enabled(ClickInterface.GESTURE)
 
+    def test_active_click_interface_state_survives_editing_inactive_profile(
+        self, dpg_root, populated_profile_manager
+    ):
+        clicking = ClickingSettingsWidget()
+        widget = SettingsWidget(
+            profile_manager=populated_profile_manager,
+            tracking=TrackingSettingsWidget(),
+            clicking=clicking,
+        )
+        widget.build(dpg_root)
+        active = populated_profile_manager.get_active_profile()
+        widget.bind(active)
+        clicking._make_on_toggle(ClickInterface.GESTURE)(None, False, None)
+
+        inactive = copy.deepcopy(active)
+        inactive.profile_id = 0
+        inactive.name = "Inactive"
+        inactive.is_active = False
+        inactive = populated_profile_manager.create_profile(inactive)
+        widget.bind(inactive)
+
+        assert widget.is_gesture_clicking_enabled() is False
+
     def test_revert_restores_persisted_state(
         self, dpg_root, populated_profile_manager
     ):
@@ -228,3 +384,27 @@ class TestSettingsWidget:
         assert profile.face_tracker_settings.speed == 99.0
         widget._revert()
         assert profile.face_tracker_settings.speed == original_speed
+
+    def test_save_and_revert_include_microphone(
+        self, dpg_root, populated_profile_manager
+    ):
+        microphone = Microphone("3", "USB Microphone")
+        clicking = ClickingSettingsWidget(
+            FakeMicrophoneManager([microphone], default=microphone)
+        )
+        widget = SettingsWidget(
+            profile_manager=populated_profile_manager,
+            tracking=TrackingSettingsWidget(),
+            clicking=clicking,
+        )
+        widget.build(dpg_root)
+        profile = populated_profile_manager.get_active_profile()
+        widget.bind(profile)
+
+        clicking._on_microphone(None, clicking._label(microphone), None)
+        widget._save()
+        assert populated_profile_manager.get_active_profile().microphone == microphone
+
+        profile.microphone = None
+        widget._revert()
+        assert profile.microphone == microphone

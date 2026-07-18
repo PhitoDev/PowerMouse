@@ -4,13 +4,21 @@ from typing import Iterable, List, Optional
 
 import numpy as np
 from platformdirs import user_data_path
-from sqlalchemy import JSON, Boolean, Float, Integer, String, create_engine, select
+from sqlalchemy import JSON, Boolean, Float, Integer, String, create_engine, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from powermouse.domain.controllers.profile import ProfileManager
-from powermouse.domain.models.camera import Camera, FaceTrackerSettings
+from powermouse.domain.models.camera import (
+    DEFAULT_ACTIVE_AREA,
+    DEFAULT_TRACKING_ACCELERATION,
+    DEFAULT_TRACKING_SPEED,
+    LEGACY_DEFAULT_ACTIVE_AREA,
+    Camera,
+    FaceTrackerSettings,
+)
 from powermouse.domain.models.mouse import ClickInterface
+from powermouse.domain.models.microphone import Microphone
 from powermouse.domain.models.profile import Profile
 
 
@@ -19,6 +27,10 @@ _APP_AUTHOR = "dev.phito"
 _DEFAULT_DB_DIR = user_data_path(_APP_NAME, _APP_AUTHOR)
 _DEFAULT_DB_PATH = _DEFAULT_DB_DIR / "profiles.db"
 _PLACEHOLDER_FRAME = np.zeros((0, 0, 3), dtype=np.uint8)
+_LEGACY_DEFAULT_TRACKING_SPEEDS = (1.0,)
+_LEGACY_DEFAULT_TRACKING_ACCELERATIONS = (1.0, 1.5)
+_TRACKING_DEFAULTS_MIGRATION_VERSION = 1
+_MICROPHONE_MIGRATION_VERSION = 2
 
 
 class _Base(DeclarativeBase):
@@ -33,16 +45,28 @@ class ProfileRow(_Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Flattened FaceTrackerSettings.
-    speed: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    acceleration: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    speed: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_TRACKING_SPEED
+    )
+    acceleration: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_TRACKING_ACCELERATION
+    )
     sensitivity_x: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     sensitivity_y: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     smoothness: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
     deadzone_radius_px: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
-    active_area_x_min: Mapped[float] = mapped_column(Float, nullable=False, default=0.4)
-    active_area_x_max: Mapped[float] = mapped_column(Float, nullable=False, default=0.6)
-    active_area_y_min: Mapped[float] = mapped_column(Float, nullable=False, default=0.4)
-    active_area_y_max: Mapped[float] = mapped_column(Float, nullable=False, default=0.6)
+    active_area_x_min: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_ACTIVE_AREA[0]
+    )
+    active_area_x_max: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_ACTIVE_AREA[1]
+    )
+    active_area_y_min: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_ACTIVE_AREA[0]
+    )
+    active_area_y_max: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_ACTIVE_AREA[1]
+    )
     click_threshold_high: Mapped[float] = mapped_column(Float, nullable=False, default=0.6)
     click_threshold_low: Mapped[float] = mapped_column(Float, nullable=False, default=0.4)
 
@@ -51,6 +75,15 @@ class ProfileRow(_Base):
     camera_name: Mapped[str] = mapped_column(String, nullable=False, default="")
 
     click_interfaces: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
+    microphone_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    microphone_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+def _active_area_from_row(min_value: float, max_value: float) -> tuple[float, float]:
+    area = (float(min_value), float(max_value))
+    if area == LEGACY_DEFAULT_ACTIVE_AREA:
+        return DEFAULT_ACTIVE_AREA
+    return area
 
 
 def _row_to_domain(row: ProfileRow) -> Profile:
@@ -69,8 +102,12 @@ def _row_to_domain(row: ProfileRow) -> Profile:
         sensitivity=(row.sensitivity_x, row.sensitivity_y),
         smoothness=row.smoothness,
         deadzone_radius_px=row.deadzone_radius_px,
-        active_area_x=(row.active_area_x_min, row.active_area_x_max),
-        active_area_y=(row.active_area_y_min, row.active_area_y_max),
+        active_area_x=_active_area_from_row(
+            row.active_area_x_min, row.active_area_x_max
+        ),
+        active_area_y=_active_area_from_row(
+            row.active_area_y_min, row.active_area_y_max
+        ),
         click_threshold_high=row.click_threshold_high,
         click_threshold_low=row.click_threshold_low,
     )
@@ -87,6 +124,11 @@ def _row_to_domain(row: ProfileRow) -> Profile:
         face_tracker_settings=settings,
         is_active=row.is_active,
         click_interfaces=click_interfaces,
+        microphone=(
+            Microphone(row.microphone_id, row.microphone_name or "")
+            if row.microphone_id is not None
+            else None
+        ),
     )
 
 
@@ -115,6 +157,8 @@ def _apply_domain_to_row(row: ProfileRow, profile: Profile) -> None:
         (k.value if isinstance(k, ClickInterface) else str(k)): bool(v)
         for k, v in (profile.click_interfaces or {}).items()
     }
+    row.microphone_id = profile.microphone.id if profile.microphone else None
+    row.microphone_name = profile.microphone.name if profile.microphone else None
 
 
 def _new_row_from_domain(profile: Profile) -> ProfileRow:
@@ -140,12 +184,55 @@ class SqlAlchemyProfileManager(ProfileManager):
         if reset_db:
             _Base.metadata.drop_all(self._engine)
         _Base.metadata.create_all(self._engine)
+        self._upgrade_microphone_schema()
+        self._upgrade_legacy_tracking_defaults()
+        with self._engine.begin() as connection:
+            version = connection.execute(text("PRAGMA user_version")).scalar_one()
+            if version < _MICROPHONE_MIGRATION_VERSION:
+                connection.execute(
+                    text(f"PRAGMA user_version = {_MICROPHONE_MIGRATION_VERSION}")
+                )
         self._session_factory = sessionmaker(bind=self._engine, expire_on_commit=False, future=True)
 
     # -- helpers -------------------------------------------------------
 
     def _session(self) -> Session:
         return self._session_factory()
+
+    def _upgrade_microphone_schema(self) -> None:
+        """Add nullable voice columns before any ORM query of legacy tables."""
+        with self._engine.begin() as connection:
+            columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(profiles)"))
+            }
+            if "microphone_id" not in columns:
+                connection.execute(text("ALTER TABLE profiles ADD COLUMN microphone_id VARCHAR"))
+            if "microphone_name" not in columns:
+                connection.execute(text("ALTER TABLE profiles ADD COLUMN microphone_name VARCHAR"))
+
+    def _upgrade_legacy_tracking_defaults(self) -> None:
+        """Apply the new tracking defaults to profiles still on old defaults."""
+        with Session(self._engine) as session:
+            version = session.execute(text("PRAGMA user_version")).scalar_one()
+            if version >= _TRACKING_DEFAULTS_MIGRATION_VERSION:
+                return
+
+            changed = False
+            rows: Iterable[ProfileRow] = session.scalars(select(ProfileRow)).all()
+            for row in rows:
+                if row.speed in _LEGACY_DEFAULT_TRACKING_SPEEDS:
+                    row.speed = DEFAULT_TRACKING_SPEED
+                    changed = True
+                if row.acceleration in _LEGACY_DEFAULT_TRACKING_ACCELERATIONS:
+                    row.acceleration = DEFAULT_TRACKING_ACCELERATION
+                    changed = True
+            session.execute(
+                text(f"PRAGMA user_version = {_TRACKING_DEFAULTS_MIGRATION_VERSION}")
+            )
+            if changed:
+                session.flush()
+            session.commit()
 
     @staticmethod
     def _clear_active_flag(session: Session, except_id: Optional[int]) -> None:

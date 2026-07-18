@@ -1,6 +1,7 @@
 # Changelog
 
-## v0.1.0
+## v0.2.0
 
-- Several improvements to UI/UX.
-- Face tracking now works correctly.
+- Implemented voice clicking.
+- Several UI and UX improvements.
+- Fixed the FPS count for the camera widget.

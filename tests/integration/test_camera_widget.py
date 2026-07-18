@@ -73,6 +73,27 @@ class TestCameraWidget:
         widget.update_frame(frame, 0)
         assert dpg.does_item_exist(widget.TEXTURE_TAG)
 
+    def test_update_frame_refreshes_measured_fps(
+        self,
+        dpg_root,
+        camera,
+        fake_camera_controller,
+        fake_inference_controller,
+        populated_profile_manager,
+    ):
+        widget = _build_widget(
+            camera,
+            {"camera": fake_camera_controller, "inference": fake_inference_controller},
+            populated_profile_manager,
+        )
+        widget.build(dpg_root)
+        frame = np.full((48, 64, 3), 200, dtype=np.uint8)
+
+        widget.update_frame(frame, 1_000)
+        widget.update_frame(frame, 1_050)
+
+        assert dpg.get_value(widget.FPS_TAG) == "FPS: 20.0"
+
     def test_update_frame_ignores_empty_input(
         self,
         dpg_root,

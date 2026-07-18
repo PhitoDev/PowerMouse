@@ -1,6 +1,6 @@
 [project]
 name = "PowerMouse"
-version = "0.1.0"
+version = "0.2.0"
 description = "Hands-free mouse control using face tracking"
 authors = [
     { name = "Ralph Dugue", email = "ralph@phito.dev" }
@@ -20,6 +20,8 @@ dependencies = [
     "platformdirs >= 4.3",
     "cv2-enumerate-cameras>=1.3.3",
     "pynput>=1.8.2",
+    "vosk==0.3.44",
+    "sounddevice==0.5.5",
 ]
 
 [project.scripts]
@@ -54,6 +56,7 @@ sources = ["src/powermouse"]
 
 # Cross-platform permissions (mapped per-platform by Briefcase).
 permission.camera = "PowerMouse needs webcam access to track your face for hands-free cursor control."
+permission.microphone = "PowerMouse needs microphone access for offline voice clicking."
 
 [tool.briefcase.app.powermouse.macOS]
 min_os_version = "11.0"
@@ -66,4 +69,4 @@ universal_build = true
 
 [tool.briefcase.app.powermouse.linux.system.debian]
 system_requires = []
-system_runtime_requires = []
+system_runtime_requires = ["libportaudio2"]

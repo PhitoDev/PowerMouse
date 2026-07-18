@@ -4,7 +4,12 @@ from typing import Optional
 
 import dearpygui.dearpygui as dpg
 
-from powermouse.domain.models.camera import FaceTrackerSettings
+from powermouse.domain.models.camera import (
+    DEFAULT_TRACKING_ACCELERATION,
+    DEFAULT_TRACKING_SPEED,
+    FaceTrackerSettings,
+)
+from powermouse.widgets.style import add_field_label, add_section_heading
 
 
 class TrackingSettingsWidget:
@@ -20,64 +25,85 @@ class TrackingSettingsWidget:
     AREA_X_MAX_TAG = "tracking_area_x_max"
     AREA_Y_MIN_TAG = "tracking_area_y_min"
     AREA_Y_MAX_TAG = "tracking_area_y_max"
+    CONTROL_WIDTH = -1
 
     def __init__(self):
         self._settings: Optional[FaceTrackerSettings] = None
 
     def build(self, parent: str) -> None:
-        dpg.add_text("Motion", parent=parent)
+        add_section_heading(parent, "Motion")
+        add_field_label(parent, "Speed")
         dpg.add_slider_float(
-            label="Speed", tag=self.SPEED_TAG, parent=parent,
-            min_value=0.0, max_value=5.0, default_value=1.0,
+            label="", tag=self.SPEED_TAG, parent=parent,
+            min_value=0.0, max_value=5.0, default_value=DEFAULT_TRACKING_SPEED,
+            width=self.CONTROL_WIDTH,
             callback=self._on_speed,
         )
+        add_field_label(parent, "Acceleration")
         dpg.add_slider_float(
-            label="Acceleration", tag=self.ACCEL_TAG, parent=parent,
-            min_value=0.1, max_value=5.0, default_value=1.0,
+            label="", tag=self.ACCEL_TAG, parent=parent,
+            min_value=0.1, max_value=5.0, default_value=DEFAULT_TRACKING_ACCELERATION,
+            width=self.CONTROL_WIDTH,
             callback=self._on_accel,
         )
+        add_field_label(parent, "Sensitivity X")
         dpg.add_slider_float(
-            label="Sensitivity X", tag=self.SENS_X_TAG, parent=parent,
+            label="", tag=self.SENS_X_TAG, parent=parent,
             min_value=0.0, max_value=5.0, default_value=1.0,
+            width=self.CONTROL_WIDTH,
             callback=self._on_sens_x,
         )
+        add_field_label(parent, "Sensitivity Y")
         dpg.add_slider_float(
-            label="Sensitivity Y", tag=self.SENS_Y_TAG, parent=parent,
+            label="", tag=self.SENS_Y_TAG, parent=parent,
             min_value=0.0, max_value=5.0, default_value=1.0,
+            width=self.CONTROL_WIDTH,
             callback=self._on_sens_y,
         )
+        add_field_label(parent, "Smoothness")
         dpg.add_slider_float(
-            label="Smoothness", tag=self.SMOOTH_TAG, parent=parent,
+            label="", tag=self.SMOOTH_TAG, parent=parent,
             min_value=0.0, max_value=1.0, default_value=0.5,
+            width=self.CONTROL_WIDTH,
             callback=self._on_smooth,
         )
         dpg.add_separator(parent=parent)
-        dpg.add_text("Deadzone", parent=parent)
+        add_section_heading(parent, "Deadzone")
+        add_field_label(parent, "Radius (px)")
         dpg.add_slider_int(
-            label="Radius (px)", tag=self.DEADZONE_TAG, parent=parent,
+            label="", tag=self.DEADZONE_TAG, parent=parent,
             min_value=0, max_value=50, default_value=5,
+            width=self.CONTROL_WIDTH,
             callback=self._on_deadzone,
         )
         dpg.add_separator(parent=parent)
-        dpg.add_text("Active Area (normalized)", parent=parent)
+        add_section_heading(parent, "Active Area (normalized)")
+        add_field_label(parent, "X Min")
         dpg.add_slider_float(
-            label="X Min", tag=self.AREA_X_MIN_TAG, parent=parent,
+            label="", tag=self.AREA_X_MIN_TAG, parent=parent,
             min_value=0.0, max_value=1.0, default_value=0.4,
+            width=self.CONTROL_WIDTH,
             callback=self._on_area,
         )
+        add_field_label(parent, "X Max")
         dpg.add_slider_float(
-            label="X Max", tag=self.AREA_X_MAX_TAG, parent=parent,
+            label="", tag=self.AREA_X_MAX_TAG, parent=parent,
             min_value=0.0, max_value=1.0, default_value=0.6,
+            width=self.CONTROL_WIDTH,
             callback=self._on_area,
         )
+        add_field_label(parent, "Y Min")
         dpg.add_slider_float(
-            label="Y Min", tag=self.AREA_Y_MIN_TAG, parent=parent,
+            label="", tag=self.AREA_Y_MIN_TAG, parent=parent,
             min_value=0.0, max_value=1.0, default_value=0.4,
+            width=self.CONTROL_WIDTH,
             callback=self._on_area,
         )
+        add_field_label(parent, "Y Max")
         dpg.add_slider_float(
-            label="Y Max", tag=self.AREA_Y_MAX_TAG, parent=parent,
+            label="", tag=self.AREA_Y_MAX_TAG, parent=parent,
             min_value=0.0, max_value=1.0, default_value=0.6,
+            width=self.CONTROL_WIDTH,
             callback=self._on_area,
         )
 

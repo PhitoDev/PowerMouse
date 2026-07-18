@@ -13,7 +13,13 @@ from powermouse.domain.controllers.devices import DeviceManager
 from powermouse.domain.controllers.inference import InferenceController
 from powermouse.domain.controllers.mouse import MouseController
 from powermouse.domain.controllers.profile import ProfileManager
+from powermouse.domain.controllers.voice import (
+    MicrophoneCapture,
+    MicrophoneManager,
+    SpeechRecognizer,
+)
 from powermouse.domain.models.mouse import MouseButton, MouseEvent, MouseEventType
+from powermouse.domain.models.microphone import Microphone
 
 
 class TestCameraControllerBase:
@@ -72,3 +78,38 @@ class TestDeviceManagerBase:
             manager._get_devices_linux()
         with pytest.raises(NotImplementedError):
             manager._get_devices_windows()
+
+
+class TestVoiceControllerBases:
+    def test_microphone_manager_methods_raise(self):
+        manager = MicrophoneManager()
+        with pytest.raises(NotImplementedError):
+            manager.get_microphones()
+        with pytest.raises(NotImplementedError):
+            manager.get_default_microphone()
+
+    def test_microphone_capture_methods_raise(self):
+        capture = MicrophoneCapture()
+        with pytest.raises(NotImplementedError):
+            _ = capture.sample_rate
+        with pytest.raises(NotImplementedError):
+            capture.start(Microphone("1", "Test"))
+        with pytest.raises(NotImplementedError):
+            capture.read()
+        with pytest.raises(NotImplementedError):
+            capture.detect_error()
+        with pytest.raises(NotImplementedError):
+            capture.stop()
+
+    def test_speech_recognizer_methods_raise(self):
+        recognizer = SpeechRecognizer()
+        with pytest.raises(NotImplementedError):
+            recognizer.start(16_000)
+        with pytest.raises(NotImplementedError):
+            recognizer.process_audio(b"")
+        with pytest.raises(NotImplementedError):
+            recognizer.detect_phrase()
+        with pytest.raises(NotImplementedError):
+            recognizer.reset()
+        with pytest.raises(NotImplementedError):
+            recognizer.stop()

@@ -22,6 +22,12 @@ from powermouse.domain.models.gesture import GestureEvent
 # MediaPipe FaceLandmarker nose-tip index (478-point face mesh).
 _NOSE_LANDMARK_INDEX = 1
 
+# Velocity acceleration tuning. Values are in mapped screen pixels so they scale
+# with monitor size and the configured active area.
+_DEFAULT_FRAME_INTERVAL_S = 1.0 / 30.0
+_ACCELERATION_REFERENCE_VELOCITY_PX_PER_S = 1600.0
+_MAX_ACCELERATION_RATIO = 3.0
+
 # Environment variable pointing at the .task model file.
 _MODEL_ENV_VAR = "POWERMOUSE_FACE_LANDMARKER_MODEL"
 
@@ -66,14 +72,17 @@ class _HysteresisGate:
 
 
 class _SmoothnessEngine:
-    """EMA + deadzone + non-linear acceleration (docs §5.1, §5.2)."""
+    """EMA + deadzone + velocity-based acceleration (docs §5.1, §5.2)."""
 
     def __init__(self, settings: FaceTrackerSettings, screen_size: Tuple[int, int]):
         self._settings = settings
         self._screen_w, self._screen_h = screen_size
-        # Initialize smoothed state at screen center.
-        self._smoothed_x: float = self._screen_w / 2.0
-        self._smoothed_y: float = self._screen_h / 2.0
+        # Initialize cursor state at screen center.
+        self._cursor_x: float = self._screen_w / 2.0
+        self._cursor_y: float = self._screen_h / 2.0
+        self._previous_target_x: Optional[float] = None
+        self._previous_target_y: Optional[float] = None
+        self._previous_timestamp_ms: Optional[int] = None
 
     @property
     def alpha(self) -> float:
@@ -82,26 +91,57 @@ class _SmoothnessEngine:
         s = max(0.0, min(1.0, float(self._settings.smoothness)))
         return max(0.05, min(1.0, 1.0 - s))
 
-    def update(self, target_x: float, target_y: float) -> Tuple[int, int]:
-        # Calculate distance from the CURRENT smoothed position, not screen center
-        dx = target_x - self._smoothed_x
-        dy = target_y - self._smoothed_y
+    def update(self, target_x: float, target_y: float, timestamp_ms: int) -> Tuple[int, int]:
+        if self._previous_target_x is None or self._previous_target_y is None:
+            self._previous_target_x = target_x
+            self._previous_target_y = target_y
+            self._previous_timestamp_ms = timestamp_ms
+            return int(round(self._cursor_x)), int(round(self._cursor_y))
+
+        # Use mapped nose movement as a relative cursor input. This makes quick
+        # movements travel farther than slow movements over the same nose range.
+        dx = target_x - self._previous_target_x
+        dy = target_y - self._previous_target_y
         distance = np.hypot(dx, dy)
 
-        # Deadzone check
+        # Deadzone check. Do not advance the previous target while inside the
+        # deadzone; slow intentional movement then accumulates instead of being
+        # discarded frame-by-frame, while jitter around the anchor is ignored.
         if distance <= self._settings.deadzone_radius_px:
-            return int(round(self._smoothed_x)), int(round(self._smoothed_y))
+            return int(round(self._cursor_x)), int(round(self._cursor_y))
 
-        # Simple EMA Smoothing
+        previous_timestamp = self._previous_timestamp_ms
+        if previous_timestamp is None or timestamp_ms <= previous_timestamp:
+            dt_s = _DEFAULT_FRAME_INTERVAL_S
+        else:
+            dt_s = (timestamp_ms - previous_timestamp) / 1000.0
+
+        velocity = distance / max(dt_s, 1e-6)
+        acceleration_ratio = min(
+            _MAX_ACCELERATION_RATIO,
+            velocity / _ACCELERATION_REFERENCE_VELOCITY_PX_PER_S,
+        )
+        speed = max(0.0, float(self._settings.speed))
+        acceleration = max(0.0, float(self._settings.acceleration))
+        gain = speed * (1.0 + (acceleration * acceleration_ratio))
+
+        self._previous_target_x = target_x
+        self._previous_target_y = target_y
+        self._previous_timestamp_ms = timestamp_ms
+
+        accelerated_x = self._cursor_x + (dx * gain)
+        accelerated_y = self._cursor_y + (dy * gain)
+
+        # Simple EMA smoothing toward the accelerated relative target.
         a = self.alpha
-        self._smoothed_x = (a * target_x) + ((1.0 - a) * self._smoothed_x)
-        self._smoothed_y = (a * target_y) + ((1.0 - a) * self._smoothed_y)
+        self._cursor_x = (a * accelerated_x) + ((1.0 - a) * self._cursor_x)
+        self._cursor_y = (a * accelerated_y) + ((1.0 - a) * self._cursor_y)
 
         # Clamp to actual screen bounds
-        self._smoothed_x = max(0.0, min(float(self._screen_w - 1), self._smoothed_x))
-        self._smoothed_y = max(0.0, min(float(self._screen_h - 1), self._smoothed_y))
+        self._cursor_x = max(0.0, min(float(self._screen_w - 1), self._cursor_x))
+        self._cursor_y = max(0.0, min(float(self._screen_h - 1), self._cursor_y))
 
-        return int(round(self._smoothed_x)), int(round(self._smoothed_y))
+        return int(round(self._cursor_x)), int(round(self._cursor_y))
 
 
 def _map_nose_to_screen(
@@ -278,7 +318,7 @@ class MediaPipeInferenceController(InferenceController):
         )
 
         with self._lock:
-            cursor = self._smoothness.update(target_x, target_y)
+            cursor = self._smoothness.update(target_x, target_y, timestamp_ms)
             self._latest_cursor = cursor
 
         blendshapes_list = getattr(result, "face_blendshapes", None)

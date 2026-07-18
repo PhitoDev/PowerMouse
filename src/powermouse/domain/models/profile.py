@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from .camera import FaceTrackerSettings
+from .microphone import Microphone
 from .mouse import ClickInterface
 
 
@@ -11,6 +12,7 @@ class Profile:
     face_tracker_settings: FaceTrackerSettings
     is_active: bool = field(default=False)
     click_interfaces: dict[ClickInterface, bool] = field(default_factory=dict)
+    microphone: Microphone | None = None
 
     def set_active(self, active: bool):
         self.is_active = active

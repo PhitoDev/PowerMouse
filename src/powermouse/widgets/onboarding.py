@@ -17,16 +17,14 @@ from powermouse.adapters.profile import SqlAlchemyProfileManager
 from powermouse.domain.models.camera import Camera, FaceTrackerSettings
 from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.profile import Profile
-from powermouse.theme import OFF_WHITE, STATUS_RED, setup_theme
-
-_GESTURE_CHEAT_SHEET = [
-    ("Wink left eye", "Left click"),
-    ("Wink right eye", "Right click"),
-    ("Squint left eye", "Double click"),
-    ("Squint right eye", "Toggle hold right click (drag)"),
-    ("Raise eyebrows", "Middle click"),
-    ("Open jaw", "Toggle hold left click (drag)"),
-]
+from powermouse.theme import STATUS_RED, setup_theme
+from powermouse.widgets.style import (
+    add_body_text,
+    add_field_label,
+    add_gesture_cheat_sheet,
+    add_panel_heading,
+    add_section_heading,
+)
 
 
 class OnboardingDialog:
@@ -87,22 +85,24 @@ class OnboardingDialog:
 
     def _build(self) -> None:
         with dpg.window(tag=self.WINDOW_TAG, no_scrollbar=False, no_title_bar=True):
-            dpg.add_text("Welcome to PowerMouse", color=OFF_WHITE)
-            dpg.add_text(
+            add_panel_heading(self.WINDOW_TAG, "Welcome to PowerMouse")
+            add_body_text(
+                self.WINDOW_TAG,
                 "Let's set up your first profile. You can create more later from the main window.",
                 wrap=520,
             )
             dpg.add_separator()
 
             with dpg.group(horizontal=True):
-                with dpg.group(label=self.FORM_TAG):
-                    dpg.add_text("Profile Name")
+                with dpg.group(label=self.FORM_TAG) as form_group:
+                    add_section_heading(form_group, "Profile")
+                    add_field_label(form_group, "Profile Name")
                     dpg.add_input_text(
                         tag=self.NAME_TAG, hint="e.g. Default", width=400
                     )
 
                     dpg.add_spacer(height=6)
-                    dpg.add_text("Camera")
+                    add_field_label(form_group, "Camera")
                     dpg.add_combo(
                         tag=self.CAMERA_TAG,
                         items=[],
@@ -119,23 +119,15 @@ class OnboardingDialog:
                 dpg.add_separator()
                 dpg.add_spacer(width=10)
 
-                with dpg.group(label=self.GESTURE_SHEET_TAG):
-                    dpg.add_text(
-                        "Gesture Clicking (always on for now)", color=OFF_WHITE
-                    )
-                    dpg.add_text(
+                with dpg.group(label=self.GESTURE_SHEET_TAG) as gesture_group:
+                    add_section_heading(gesture_group, "Gesture Clicking")
+                    add_body_text(
+                        gesture_group,
                         "These facial gestures trigger clicks once tracking starts:",
                         wrap=520,
                     )
-                    with dpg.table(
-                        header_row=True, policy=dpg.mvTable_SizingStretchProp
-                    ):
-                        dpg.add_table_column(label="Gesture")
-                        dpg.add_table_column(label="Action")
-                        for gesture, action in _GESTURE_CHEAT_SHEET:
-                            with dpg.table_row():
-                                dpg.add_text(gesture)
-                                dpg.add_text(action)
+                    dpg.add_spacer(height=4)
+                    add_gesture_cheat_sheet(gesture_group)
 
             dpg.add_spacer(height=10)
             dpg.add_separator()
