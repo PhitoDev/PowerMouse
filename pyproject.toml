@@ -59,7 +59,9 @@ permission.camera = "PowerMouse needs webcam access to track your face for hands
 permission.microphone = "PowerMouse needs microphone access for offline voice clicking."
 
 [tool.briefcase.app.powermouse.macOS]
-min_os_version = "11.0"
+# Floor set by dependency wheels: numpy>=2.4.4 ships macosx_14_0 wheels,
+# opencv-python/dearpygui need 13.0.
+min_os_version = "14.0"
 universal_build = true
 
 [tool.briefcase.app.powermouse.windows]
