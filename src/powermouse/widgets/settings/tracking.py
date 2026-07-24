@@ -9,12 +9,15 @@ from powermouse.domain.models.camera import (
     DEFAULT_TRACKING_SPEED,
     FaceTrackerSettings,
 )
+from powermouse.domain.models.profile import Profile
 from powermouse.widgets.style import add_field_label, add_section_heading
 
 
 class TrackingSettingsWidget:
     """Tracking parameter sliders bound to a FaceTrackerSettings instance (live mutation)."""
 
+    ENABLED_TAG = "tracking_enabled"
+    SETTINGS_GROUP_TAG = "tracking_settings_group"
     SPEED_TAG = "tracking_speed"
     ACCEL_TAG = "tracking_accel"
     SENS_X_TAG = "tracking_sens_x"
@@ -29,8 +32,20 @@ class TrackingSettingsWidget:
 
     def __init__(self):
         self._settings: Optional[FaceTrackerSettings] = None
+        self._profile: Optional[Profile] = None
 
     def build(self, parent: str) -> None:
+        dpg.add_checkbox(
+            label="Face Tracking",
+            tag=self.ENABLED_TAG,
+            parent=parent,
+            default_value=True,
+            callback=self._on_enabled,
+        )
+        # All parameter controls live in one group so disabling tracking
+        # greys them out, matching the clicking-interface sections.
+        dpg.add_group(tag=self.SETTINGS_GROUP_TAG, parent=parent)
+        parent = self.SETTINGS_GROUP_TAG
         add_section_heading(parent, "Motion")
         add_field_label(parent, "Speed")
         dpg.add_slider_float(
@@ -107,6 +122,12 @@ class TrackingSettingsWidget:
             callback=self._on_area,
         )
 
+    def bind_profile(self, profile: Profile) -> None:
+        """Bind the tracking on/off toggle to a Profile (live mutation)."""
+        self._profile = profile
+        dpg.set_value(self.ENABLED_TAG, profile.tracking_enabled)
+        self._set_settings_enabled(profile.tracking_enabled)
+
     def bind(self, settings: FaceTrackerSettings) -> None:
         self._settings = settings
         dpg.set_value(self.SPEED_TAG, settings.speed)
@@ -121,6 +142,16 @@ class TrackingSettingsWidget:
         dpg.set_value(self.AREA_Y_MAX_TAG, settings.active_area_y[1])
 
     # -- callbacks -----------------------------------------------------
+
+    def _set_settings_enabled(self, enabled: bool) -> None:
+        if dpg.does_item_exist(self.SETTINGS_GROUP_TAG):
+            dpg.configure_item(self.SETTINGS_GROUP_TAG, enabled=enabled)
+
+    def _on_enabled(self, sender, app_data, user_data):  # noqa: ARG002
+        enabled = bool(app_data)
+        self._set_settings_enabled(enabled)
+        if self._profile is not None:
+            self._profile.tracking_enabled = enabled
 
     def _on_speed(self, sender, app_data, user_data):  # noqa: ARG002
         if self._settings is not None:

@@ -11,6 +11,7 @@ from screeninfo import get_monitors
 
 from powermouse.adapters.camera import OpenCVCameraController
 from powermouse.adapters.devices import SystemDeviceManager
+from powermouse.adapters.dwell_palette import SubprocessDwellPalette
 from powermouse.adapters.inference import MediaPipeInferenceController
 from powermouse.adapters.mouse import SystemMouseController
 from powermouse.adapters.profile import SqlAlchemyProfileManager
@@ -32,6 +33,7 @@ from powermouse.widgets.settings import (
     TrackingSettingsWidget,
 )
 
+from .domain.usecases.dwell_clicking import DwellClicker, dwell_clicking_step
 from .domain.usecases.gesture_mapping import GestureToMouseTranslator
 from .domain.usecases.mouse_actions import MouseActionCoordinator
 from .domain.usecases.track_face import tracking_step
@@ -197,6 +199,12 @@ def main() -> None:
     action_coordinator = MouseActionCoordinator()
     gesture_translator = GestureToMouseTranslator(action_coordinator)
     voice_translator = VoiceToMouseTranslator(action_coordinator)
+    dwell_palette = SubprocessDwellPalette()
+    dwell_clicker = DwellClicker(
+        settings=active_profile.dwell_settings,
+        palette=dwell_palette,
+        coordinator=action_coordinator,
+    )
     microphone_manager = SoundDeviceMicrophoneManager()
     microphone_capture = SoundDeviceMicrophoneCapture()
     speech_recognizer = VoskSpeechRecognizer()
@@ -207,6 +215,7 @@ def main() -> None:
     )
     shutting_down = False
     runtime_voice_enabled = False
+    runtime_dwell_enabled = False
     running_profile_id: int | None = None
     running_microphone: Microphone | None = None
 
@@ -323,9 +332,31 @@ def main() -> None:
             clicking_widget.set_status("listening")
             return True
 
+    def apply_dwell_profile(profile):
+        """Sync the dwell runtime (clicker + palette) with the active profile.
+
+        Called on active-profile changes and whenever dwell settings are
+        edited. Editing an inactive profile never changes the live runtime.
+        """
+        nonlocal runtime_dwell_enabled
+        if shutting_down or profile is None or not profile.is_active:
+            return
+        enabled = profile.is_click_interface_enabled(ClickInterface.DWELL)
+        dwell_clicker.settings = profile.dwell_settings
+        if enabled:
+            dwell_palette.apply_settings(profile.dwell_settings)
+            dwell_palette.show()
+        else:
+            dwell_palette.hide()
+        # The dispatch worker releases dwell-owned holds when it observes the
+        # disabled flag (see dwell_step below).
+        runtime_dwell_enabled = enabled
+
     # Widgets ----------------------------------------------------------
     tracking_widget = TrackingSettingsWidget()
-    clicking_widget = ClickingSettingsWidget(microphone_manager, apply_voice_profile)
+    clicking_widget = ClickingSettingsWidget(
+        microphone_manager, apply_voice_profile, apply_dwell_profile
+    )
     settings_widget = SettingsWidget(
         profile_manager=profile_manager,
         tracking=tracking_widget,
@@ -346,6 +377,7 @@ def main() -> None:
 
     def apply_active_profile(profile):
         settings_widget.set_active_profile(profile)
+        apply_dwell_profile(profile)
         return apply_voice_profile(profile)
 
     profiles_widget = ProfilesWidget(
@@ -376,6 +408,7 @@ def main() -> None:
     # state instead of crashing the app.
     camera_widget.start()
     apply_voice_profile(active_profile)
+    apply_dwell_profile(active_profile)
 
     dpg.create_viewport(
         title="PowerMouse",
@@ -402,6 +435,14 @@ def main() -> None:
             except queue.Full:
                 pass
 
+    def current_cursor() -> tuple[int, int]:
+        """Cursor position for click dispatch: always the real OS cursor.
+
+        While face tracking is on, ``tracking_step`` has already moved the OS
+        cursor to the inferred position, so this stays correct in both modes
+        and keeps clicking working when the camera is unavailable."""
+        return mouse_controller.get_position()
+
     def drain_voice_releases(cursor):
         while True:
             try:
@@ -415,10 +456,26 @@ def main() -> None:
                 if acknowledged is not None:
                     acknowledged.set()
 
-    # Camera, gesture, and voice mouse events share one dispatch worker.
+    # Runs on the dispatch worker once per loop iteration, independent of the
+    # camera pipeline, so dwell clicking keeps working when face tracking is
+    # off or the camera is unavailable.
+    dwell_was_active = False
+
+    def dwell_step(cursor: tuple[int, int], timestamp: int) -> None:
+        nonlocal dwell_was_active
+        dwell_was_active = dwell_clicking_step(
+            dwell_clicker,
+            mouse_controller,
+            cursor,
+            timestamp,
+            runtime_dwell_enabled,
+            dwell_was_active,
+        )
+
+    # Camera, gesture, voice, and dwell mouse events share one dispatch worker.
     def background_tracking_loop():
         while not stop_event.is_set():
-            cursor = inference_controller.get_cursor_position()
+            cursor = current_cursor()
             drain_voice_releases(cursor)
             voice_clicking_step(
                 speech_recognizer,
@@ -435,12 +492,17 @@ def main() -> None:
                     inference_controller=inference_controller,
                     camera_controller=camera_controller,
                     gesture_translator=gesture_translator,
+                    tracking_enabled=settings_widget.is_tracking_enabled,
                     gesture_clicking_enabled=settings_widget.is_gesture_clicking_enabled,
                 )
             except RuntimeError:
-                # Voice remains available while the camera/inference pipeline
-                # is temporarily unavailable.
+                # Voice and dwell remain available while the camera/inference
+                # pipeline is temporarily unavailable.
                 pass
+
+            # Dwell runs after tracking so it sees the freshest cursor, and
+            # outside tracking_step so a camera failure never stalls it.
+            dwell_step(current_cursor(), int(time.time() * 1000))
 
             time.sleep(0.005)
 
@@ -498,10 +560,15 @@ def main() -> None:
         # The dispatch worker normally performs the voice release above. This
         # final idempotent cleanup also releases gesture-owned buttons and is
         # safe because the worker has already stopped.
-        cursor = inference_controller.get_cursor_position()
+        cursor = current_cursor()
         for translator in (voice_translator, gesture_translator):
             for event in translator.reset_holds(cursor):
                 mouse_controller.handle_event(event)
+        # Release any dwell-owned drag before tearing down the palette
+        # subprocess so the user is never left with a stuck button.
+        for event in dwell_clicker.reset_holds(cursor):
+            mouse_controller.handle_event(event)
+        dwell_palette.stop()
         inference_controller.stop()
         camera_controller.stop_stream()
         dpg.destroy_context()

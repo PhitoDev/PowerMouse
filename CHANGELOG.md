@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.3.0
+
+- Implemented dwell clicking with a translucent floating palette offering
+  left, double, right, and middle clicks, drag, pause, and layout flip.
+- The palette can be repositioned hands-free: dwell on its grip to pick it
+  up, let it follow the cursor, then dwell again to drop it.
+- Face tracking is now optional and persisted per profile, so PowerMouse can
+  be used for clicking alone alongside any pointing device.
+- Dwell and voice clicking keep working when the camera is unavailable.
+- Dwell settings (dwell time, radius, palette opacity, and orientation) are
+  persisted per profile.
+- Tracking parameter controls are greyed out while face tracking is off.
+
 ## v0.2.0
 
 - Implemented voice clicking.

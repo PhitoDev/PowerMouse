@@ -16,6 +16,7 @@ def tracking_step(
     mouse_controller: mouse.MouseController,
     gesture_translator: GestureToMouseTranslator,
     frame_processor,
+    tracking_enabled: Callable[[], bool] = lambda: True,
     gesture_clicking_enabled: Callable[[], bool] = lambda: True,
 ):
     try:
@@ -28,17 +29,22 @@ def tracking_step(
     timestamp = int(time.time() * 1000)
     inference_controller.process_frame(frame, timestamp)
 
-    # Move the cursor every frame.
-    cursor = inference_controller.get_cursor_position()
-    _dispatch(
-        mouse_controller,
-        MouseEvent(
-            button=MouseButton.LEFT,
-            x=cursor[0],
-            y=cursor[1],
-            event_type=MouseEventType.MOVE,
-        ),
-    )
+    # Move the cursor every frame while face tracking is enabled. When it is
+    # disabled the user points with another device, so gestures and dwell act
+    # on the real OS cursor position instead of the inferred one.
+    if tracking_enabled():
+        cursor = inference_controller.get_cursor_position()
+        _dispatch(
+            mouse_controller,
+            MouseEvent(
+                button=MouseButton.LEFT,
+                x=cursor[0],
+                y=cursor[1],
+                event_type=MouseEventType.MOVE,
+            ),
+        )
+    else:
+        cursor = mouse_controller.get_position()
 
     # Drain any queued gestures and dispatch their mouse events when gesture
     # clicking is enabled. Gestures are still drained while disabled so old

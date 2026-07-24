@@ -122,6 +122,55 @@ class TestTrackingStep:
         assert inference.detect_gesture() is None
 
 
+class TestTrackingDisabled:
+    def test_no_move_is_dispatched(
+        self,
+        sync_dispatch,
+        fake_camera_controller,
+        fake_inference_controller,
+        recording_mouse_controller,
+    ):
+        track_face.tracking_step(
+            camera_controller=fake_camera_controller,
+            inference_controller=fake_inference_controller,
+            mouse_controller=recording_mouse_controller,
+            gesture_translator=GestureToMouseTranslator(),
+            frame_processor=lambda *_: None,
+            tracking_enabled=lambda: False,
+        )
+        assert recording_mouse_controller.events == []
+        # Camera/inference stay live (gestures may still need them).
+        assert len(fake_inference_controller.process_calls) == 1
+
+    def test_gestures_click_at_the_os_cursor_position(
+        self,
+        sync_dispatch,
+        fake_camera_controller,
+        recording_mouse_controller,
+    ):
+        from tests.conftest import FakeInferenceController
+
+        recording_mouse_controller.position = (321, 654)
+        inference = FakeInferenceController(
+            cursor=(7, 9),  # ignored: tracking is off
+            gestures=[GestureEvent.LEFT_BLINK],
+        )
+        track_face.tracking_step(
+            camera_controller=fake_camera_controller,
+            inference_controller=inference,
+            mouse_controller=recording_mouse_controller,
+            gesture_translator=GestureToMouseTranslator(),
+            frame_processor=lambda *_: None,
+            tracking_enabled=lambda: False,
+        )
+        events = recording_mouse_controller.events
+        assert [e.event_type for e in events] == [
+            MouseEventType.BUTTON_DOWN,
+            MouseEventType.BUTTON_UP,
+        ]
+        assert all((e.x, e.y) == (321, 654) for e in events)
+
+
 class TestUpdateCamera:
     def test_stops_streams_and_persists_camera_swap(
         self,

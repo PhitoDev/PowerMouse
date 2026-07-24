@@ -9,6 +9,7 @@ import pytest
 
 from powermouse.domain.controllers.voice import MicrophoneManager
 from powermouse.domain.models.camera import Camera
+from powermouse.domain.models.dwell import PaletteOrientation
 from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.microphone import Microphone
 from powermouse.domain.usecases.gesture_mapping import GESTURE_CLICK_CHEAT_SHEET
@@ -64,6 +65,38 @@ class TestTrackingSettingsWidget:
         assert face_tracker_settings.smoothness == 0.9
         assert face_tracker_settings.deadzone_radius_px == 12
 
+    def test_bind_profile_populates_tracking_toggle(
+        self, dpg_root, sample_profile
+    ):
+        widget = TrackingSettingsWidget()
+        widget.build(dpg_root)
+        sample_profile.tracking_enabled = False
+        widget.bind_profile(sample_profile)
+        assert dpg.get_value(widget.ENABLED_TAG) is False
+        assert (
+            dpg.get_item_configuration(widget.SETTINGS_GROUP_TAG)["enabled"]
+            is False
+        )
+
+    def test_enabled_callback_mutates_profile_and_greys_out_sliders(
+        self, dpg_root, sample_profile
+    ):
+        widget = TrackingSettingsWidget()
+        widget.build(dpg_root)
+        widget.bind_profile(sample_profile)
+        widget._on_enabled(None, False, None)
+        assert sample_profile.tracking_enabled is False
+        assert (
+            dpg.get_item_configuration(widget.SETTINGS_GROUP_TAG)["enabled"]
+            is False
+        )
+        widget._on_enabled(None, True, None)
+        assert sample_profile.tracking_enabled is True
+        assert (
+            dpg.get_item_configuration(widget.SETTINGS_GROUP_TAG)["enabled"]
+            is True
+        )
+
     def test_active_area_callback_reads_current_slider_values(
         self, dpg_root, face_tracker_settings
     ):
@@ -94,28 +127,21 @@ class TestClickingSettingsWidget:
         assert dpg.get_value(widget.HIGH_TAG) == pytest.approx(0.7)
         assert dpg.get_value(widget.LOW_TAG) == pytest.approx(0.3)
 
-    def test_gesture_and_voice_clicking_checkboxes_are_enabled(self, dpg_root):
+    def test_all_clicking_checkboxes_are_enabled(self, dpg_root):
         widget = ClickingSettingsWidget()
         widget.build(dpg_root)
 
-        assert (
-            dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.GESTURE])[
-                "enabled"
-            ]
-            is True
-        )
-        assert (
-            dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.DWELL])[
-                "enabled"
-            ]
-            is False
-        )
-        assert (
-            dpg.get_item_configuration(widget._checkbox_tags[ClickInterface.VOICE])[
-                "enabled"
-            ]
-            is True
-        )
+        for interface in (
+            ClickInterface.GESTURE,
+            ClickInterface.DWELL,
+            ClickInterface.VOICE,
+        ):
+            assert (
+                dpg.get_item_configuration(widget._checkbox_tags[interface])[
+                    "enabled"
+                ]
+                is True
+            )
 
     def test_toggle_callback_updates_gesture_profile(self, dpg_root, sample_profile):
         widget = ClickingSettingsWidget()
@@ -134,16 +160,48 @@ class TestClickingSettingsWidget:
             is True
         )
 
-    def test_disabled_toggle_callback_ignores_only_unsupported_interfaces(
+    def test_dwell_toggle_updates_profile_and_notifies_runtime(
         self, dpg_root, sample_profile
     ):
-        widget = ClickingSettingsWidget()
+        applied: list = []
+        widget = ClickingSettingsWidget(on_dwell_changed=applied.append)
         widget.build(dpg_root)
         widget.bind(sample_profile)
         widget._make_on_toggle(ClickInterface.DWELL)(None, True, None)
-        widget._make_on_toggle(ClickInterface.VOICE)(None, True, None)
-        assert not sample_profile.is_click_interface_enabled(ClickInterface.DWELL)
-        assert sample_profile.is_click_interface_enabled(ClickInterface.VOICE)
+        assert sample_profile.is_click_interface_enabled(ClickInterface.DWELL)
+        assert applied == [sample_profile]
+        assert (
+            dpg.get_item_configuration(widget.DWELL_SETTINGS_TAG)["enabled"] is True
+        )
+
+    def test_dwell_setting_callbacks_mutate_profile_and_notify(
+        self, dpg_root, sample_profile
+    ):
+        applied: list = []
+        widget = ClickingSettingsWidget(on_dwell_changed=applied.append)
+        widget.build(dpg_root)
+        widget.bind(sample_profile)
+        widget._on_dwell_time(None, 1500, None)
+        widget._on_dwell_radius(None, 40, None)
+        widget._on_dwell_opacity(None, 0.6, None)
+        widget._on_dwell_orientation(None, "Horizontal", None)
+        dwell = sample_profile.dwell_settings
+        assert dwell.dwell_time_ms == 1500
+        assert dwell.radius_px == 40
+        assert dwell.palette_opacity == pytest.approx(0.6)
+        assert dwell.palette_orientation is PaletteOrientation.HORIZONTAL
+        assert len(applied) == 4
+
+    def test_bind_populates_dwell_controls(self, dpg_root, sample_profile):
+        sample_profile.dwell_settings.dwell_time_ms = 800
+        sample_profile.dwell_settings.palette_orientation = (
+            PaletteOrientation.HORIZONTAL
+        )
+        widget = ClickingSettingsWidget()
+        widget.build(dpg_root)
+        widget.bind(sample_profile)
+        assert dpg.get_value(widget.DWELL_TIME_TAG) == 800
+        assert dpg.get_value(widget.DWELL_ORIENTATION_TAG) == "Horizontal"
 
     def test_threshold_callbacks_update_settings(self, dpg_root, sample_profile):
         widget = ClickingSettingsWidget()

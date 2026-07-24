@@ -51,6 +51,10 @@ class TestMouseControllerBase:
                 MouseEvent(MouseButton.LEFT, 0, 0, MouseEventType.MOVE)
             )
 
+    def test_get_position_raises(self):
+        with pytest.raises(NotImplementedError):
+            MouseController().get_position()
+
 
 class TestProfileManagerBase:
     def test_methods_raise(self, sample_profile):

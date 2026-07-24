@@ -17,6 +17,13 @@ from powermouse.domain.models.camera import (
     Camera,
     FaceTrackerSettings,
 )
+from powermouse.domain.models.dwell import (
+    DEFAULT_DWELL_RADIUS_PX,
+    DEFAULT_DWELL_TIME_MS,
+    DEFAULT_PALETTE_OPACITY,
+    DwellSettings,
+    PaletteOrientation,
+)
 from powermouse.domain.models.mouse import ClickInterface
 from powermouse.domain.models.microphone import Microphone
 from powermouse.domain.models.profile import Profile
@@ -43,6 +50,7 @@ class ProfileRow(_Base):
     profile_id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tracking_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     # Flattened FaceTrackerSettings.
     speed: Mapped[float] = mapped_column(
@@ -77,6 +85,20 @@ class ProfileRow(_Base):
     click_interfaces: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
     microphone_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     microphone_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+    # Flattened DwellSettings.
+    dwell_time_ms: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=DEFAULT_DWELL_TIME_MS
+    )
+    dwell_radius_px: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=DEFAULT_DWELL_RADIUS_PX
+    )
+    dwell_palette_opacity: Mapped[float] = mapped_column(
+        Float, nullable=False, default=DEFAULT_PALETTE_OPACITY
+    )
+    dwell_palette_orientation: Mapped[str] = mapped_column(
+        String, nullable=False, default=PaletteOrientation.VERTICAL.value
+    )
 
 
 def _active_area_from_row(min_value: float, max_value: float) -> tuple[float, float]:
@@ -118,16 +140,27 @@ def _row_to_domain(row: ProfileRow) -> Profile:
         except ValueError:
             # Ignore unknown click interface keys rather than failing load.
             continue
+    try:
+        orientation = PaletteOrientation(row.dwell_palette_orientation)
+    except ValueError:
+        orientation = PaletteOrientation.VERTICAL
     return Profile(
         profile_id=row.profile_id,
         name=row.name,
         face_tracker_settings=settings,
         is_active=row.is_active,
+        tracking_enabled=bool(row.tracking_enabled),
         click_interfaces=click_interfaces,
         microphone=(
             Microphone(row.microphone_id, row.microphone_name or "")
             if row.microphone_id is not None
             else None
+        ),
+        dwell_settings=DwellSettings(
+            dwell_time_ms=int(row.dwell_time_ms),
+            radius_px=int(row.dwell_radius_px),
+            palette_opacity=float(row.dwell_palette_opacity),
+            palette_orientation=orientation,
         ),
     )
 
@@ -136,6 +169,7 @@ def _apply_domain_to_row(row: ProfileRow, profile: Profile) -> None:
     settings = profile.face_tracker_settings
     row.name = profile.name
     row.is_active = profile.is_active
+    row.tracking_enabled = bool(profile.tracking_enabled)
     row.speed = float(settings.speed)
     row.acceleration = float(settings.acceleration)
     sensitivity = tuple(settings.sensitivity)
@@ -159,6 +193,11 @@ def _apply_domain_to_row(row: ProfileRow, profile: Profile) -> None:
     }
     row.microphone_id = profile.microphone.id if profile.microphone else None
     row.microphone_name = profile.microphone.name if profile.microphone else None
+    dwell = profile.dwell_settings
+    row.dwell_time_ms = int(dwell.dwell_time_ms)
+    row.dwell_radius_px = int(dwell.radius_px)
+    row.dwell_palette_opacity = float(dwell.palette_opacity)
+    row.dwell_palette_orientation = dwell.palette_orientation.value
 
 
 def _new_row_from_domain(profile: Profile) -> ProfileRow:
@@ -185,6 +224,7 @@ class SqlAlchemyProfileManager(ProfileManager):
             _Base.metadata.drop_all(self._engine)
         _Base.metadata.create_all(self._engine)
         self._upgrade_microphone_schema()
+        self._upgrade_dwell_schema()
         self._upgrade_legacy_tracking_defaults()
         with self._engine.begin() as connection:
             version = connection.execute(text("PRAGMA user_version")).scalar_one()
@@ -210,6 +250,30 @@ class SqlAlchemyProfileManager(ProfileManager):
                 connection.execute(text("ALTER TABLE profiles ADD COLUMN microphone_id VARCHAR"))
             if "microphone_name" not in columns:
                 connection.execute(text("ALTER TABLE profiles ADD COLUMN microphone_name VARCHAR"))
+
+    def _upgrade_dwell_schema(self) -> None:
+        """Add dwell columns (with defaults) to legacy tables additively."""
+        new_columns = {
+            "dwell_time_ms": f"INTEGER NOT NULL DEFAULT {DEFAULT_DWELL_TIME_MS}",
+            "dwell_radius_px": f"INTEGER NOT NULL DEFAULT {DEFAULT_DWELL_RADIUS_PX}",
+            "dwell_palette_opacity": f"FLOAT NOT NULL DEFAULT {DEFAULT_PALETTE_OPACITY}",
+            "dwell_palette_orientation": (
+                f"VARCHAR NOT NULL DEFAULT '{PaletteOrientation.VERTICAL.value}'"
+            ),
+            # Tracking became optional alongside dwell; piggyback on the same
+            # additive upgrade pass.
+            "tracking_enabled": "BOOLEAN NOT NULL DEFAULT 1",
+        }
+        with self._engine.begin() as connection:
+            columns = {
+                row[1]
+                for row in connection.execute(text("PRAGMA table_info(profiles)"))
+            }
+            for name, definition in new_columns.items():
+                if name not in columns:
+                    connection.execute(
+                        text(f"ALTER TABLE profiles ADD COLUMN {name} {definition}")
+                    )
 
     def _upgrade_legacy_tracking_defaults(self) -> None:
         """Apply the new tracking defaults to profiles still on old defaults."""

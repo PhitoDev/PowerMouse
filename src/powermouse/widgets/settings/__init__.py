@@ -61,6 +61,7 @@ class SettingsWidget:
         if profile.is_active:
             self._active_profile = profile
         dpg.set_value(self.NAME_TAG, f"Editing: {profile.name}")
+        self._tracking.bind_profile(profile)
         self._tracking.bind(profile.face_tracker_settings)
         self._clicking.bind(profile)
 
@@ -98,6 +99,12 @@ class SettingsWidget:
             and self._active_profile.is_click_interface_enabled(ClickInterface.GESTURE)
         )
 
+    def is_tracking_enabled(self) -> bool:
+        """Whether face-driven cursor movement is on for the active profile."""
+        if self._current is not None and self._current.is_active:
+            return self._current.tracking_enabled
+        return bool(self._active_profile and self._active_profile.tracking_enabled)
+
     # -- callbacks -----------------------------------------------------
 
     def _save(self, *_):
@@ -122,6 +129,7 @@ class SettingsWidget:
         # inference controller) keep pointing at the same instance.
         self._current.name = fresh.name
         self._current.is_active = fresh.is_active
+        self._current.tracking_enabled = fresh.tracking_enabled
         self._current.click_interfaces = fresh.click_interfaces
         self._current.microphone = fresh.microphone
         fs, fr = self._current.face_tracker_settings, fresh.face_tracker_settings
@@ -134,6 +142,11 @@ class SettingsWidget:
         fs.active_area_y = fr.active_area_y
         fs.click_threshold_high = fr.click_threshold_high
         fs.click_threshold_low = fr.click_threshold_low
+        ds, dr = self._current.dwell_settings, fresh.dwell_settings
+        ds.dwell_time_ms = dr.dwell_time_ms
+        ds.radius_px = dr.radius_px
+        ds.palette_opacity = dr.palette_opacity
+        ds.palette_orientation = dr.palette_orientation
         if self._current.is_active:
             self._active_profile = self._current
         self.bind(self._current)

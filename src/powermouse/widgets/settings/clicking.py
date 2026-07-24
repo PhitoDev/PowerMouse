@@ -5,6 +5,7 @@ from typing import Callable, Dict, Optional
 import dearpygui.dearpygui as dpg
 
 from powermouse.domain.controllers.voice import MicrophoneManager
+from powermouse.domain.models.dwell import PaletteOrientation
 from powermouse.domain.models.mouse import ClickInterface, MouseButton
 from powermouse.domain.models.microphone import Microphone
 from powermouse.domain.models.profile import Profile
@@ -27,13 +28,22 @@ class ClickingSettingsWidget:
     HIGH_TAG = "clicking_threshold_high"
     LOW_TAG = "clicking_threshold_low"
     GESTURE_SETTINGS_TAG = "clicking_gesture_settings"
+    DWELL_SETTINGS_TAG = "clicking_dwell_settings"
     VOICE_SETTINGS_TAG = "clicking_voice_settings"
     CHEAT_SHEET_GROUP_TAG = "clicking_gesture_cheat_sheet"
     VOICE_INSTRUCTIONS_TAG = "clicking_voice_instructions"
+    DWELL_TIME_TAG = "clicking_dwell_time"
+    DWELL_RADIUS_TAG = "clicking_dwell_radius"
+    DWELL_OPACITY_TAG = "clicking_dwell_opacity"
+    DWELL_ORIENTATION_TAG = "clicking_dwell_orientation"
     CONTROL_WIDTH = -1
     TOOLTIP_WIDTH = 320
     POPUP_WIDTH = 460
-    ENABLED_INTERFACES = {ClickInterface.GESTURE, ClickInterface.VOICE}
+    ENABLED_INTERFACES = {
+        ClickInterface.GESTURE,
+        ClickInterface.DWELL,
+        ClickInterface.VOICE,
+    }
     MICROPHONE_TAG = "clicking_microphone"
     STATUS_TAG = "clicking_voice_status"
 
@@ -51,14 +61,21 @@ class ClickingSettingsWidget:
         ("Middle drag", MouseButton.MIDDLE),
     )
 
+    ORIENTATION_LABELS = {
+        PaletteOrientation.VERTICAL: "Vertical",
+        PaletteOrientation.HORIZONTAL: "Horizontal",
+    }
+
     def __init__(
         self,
         microphone_manager: MicrophoneManager | None = None,
         on_voice_changed: Callable[[Profile], bool] = lambda _p: True,
+        on_dwell_changed: Callable[[Profile], None] = lambda _p: None,
     ):
         self._profile: Optional[Profile] = None
         self._microphone_manager = microphone_manager
         self._on_voice_changed = on_voice_changed
+        self._on_dwell_changed = on_dwell_changed
         self._microphones: dict[str, Microphone] = {}
         self._microphone_selections: dict[str, Microphone | None] = {}
         self._checkbox_tags: Dict[ClickInterface, str] = {
@@ -66,6 +83,7 @@ class ClickingSettingsWidget:
         }
         self._settings_tags = {
             ClickInterface.GESTURE: self.GESTURE_SETTINGS_TAG,
+            ClickInterface.DWELL: self.DWELL_SETTINGS_TAG,
             ClickInterface.VOICE: self.VOICE_SETTINGS_TAG,
         }
 
@@ -115,24 +133,64 @@ class ClickingSettingsWidget:
         dpg.add_separator(parent=parent)
 
         dwell_info = self._add_mode_header(parent, ClickInterface.DWELL)
+        with dpg.group(
+            tag=self.DWELL_SETTINGS_TAG,
+            parent=parent,
+            enabled=False,
+        ):
+            add_field_label(self.DWELL_SETTINGS_TAG, "Dwell Time (ms)")
+            dpg.add_slider_int(
+                label="", tag=self.DWELL_TIME_TAG, parent=self.DWELL_SETTINGS_TAG,
+                min_value=300, max_value=3000, default_value=1000,
+                width=self.CONTROL_WIDTH,
+                callback=self._on_dwell_time,
+            )
+            add_field_label(self.DWELL_SETTINGS_TAG, "Movement Radius (px)")
+            dpg.add_slider_int(
+                label="", tag=self.DWELL_RADIUS_TAG, parent=self.DWELL_SETTINGS_TAG,
+                min_value=5, max_value=100, default_value=25,
+                width=self.CONTROL_WIDTH,
+                callback=self._on_dwell_radius,
+            )
+            add_field_label(self.DWELL_SETTINGS_TAG, "Palette Opacity")
+            dpg.add_slider_float(
+                label="", tag=self.DWELL_OPACITY_TAG, parent=self.DWELL_SETTINGS_TAG,
+                min_value=0.3, max_value=1.0, default_value=0.85,
+                width=self.CONTROL_WIDTH,
+                callback=self._on_dwell_opacity,
+            )
+            add_field_label(self.DWELL_SETTINGS_TAG, "Palette Layout")
+            dpg.add_combo(
+                list(self.ORIENTATION_LABELS.values()),
+                tag=self.DWELL_ORIENTATION_TAG,
+                parent=self.DWELL_SETTINGS_TAG,
+                default_value=self.ORIENTATION_LABELS[PaletteOrientation.VERTICAL],
+                width=self.CONTROL_WIDTH,
+                callback=self._on_dwell_orientation,
+            )
         with dpg.tooltip(dwell_info):
             tooltip = dpg.last_container()
             dpg.add_spacer(parent=tooltip, width=self.TOOLTIP_WIDTH, height=0)
             add_body_text(
                 tooltip,
-                "Dwell clicking is coming soon.",
+                "Click for dwell clicking instructions.",
                 wrap=self.TOOLTIP_WIDTH,
             )
         with dpg.popup(
             dwell_info,
             mousebutton=dpg.mvMouseButton_Left,
             min_size=(self.POPUP_WIDTH, 100),
-            max_size=(self.POPUP_WIDTH, 260),
+            max_size=(self.POPUP_WIDTH, 320),
         ):
             add_body_text(
                 dpg.last_container(),
-                "Dwell clicking is not available yet. It will click after the pointer "
-                "rests in one place for a configurable amount of time.",
+                "Dwell clicking fires the armed action after the pointer rests in "
+                "one place for the dwell time. A floating palette lets you arm "
+                "Left, Double, Right, Middle, or Drag, pause dwell clicking, and "
+                "flip its layout. Rest the pointer on a palette button (or click "
+                "it) to activate it; armed actions reset to Left after one click. "
+                "Drag the grip at the top of the palette to move it anywhere on "
+                "screen.",
                 wrap=380,
             )
 
@@ -249,6 +307,14 @@ class ClickingSettingsWidget:
             self._set_settings_enabled(ci, enabled)
         dpg.set_value(self.HIGH_TAG, profile.face_tracker_settings.click_threshold_high)
         dpg.set_value(self.LOW_TAG, profile.face_tracker_settings.click_threshold_low)
+        dwell = profile.dwell_settings
+        dpg.set_value(self.DWELL_TIME_TAG, dwell.dwell_time_ms)
+        dpg.set_value(self.DWELL_RADIUS_TAG, dwell.radius_px)
+        dpg.set_value(self.DWELL_OPACITY_TAG, dwell.palette_opacity)
+        dpg.set_value(
+            self.DWELL_ORIENTATION_TAG,
+            self.ORIENTATION_LABELS[dwell.palette_orientation],
+        )
 
     def refresh_microphones(self) -> None:
         manager = self._microphone_manager
@@ -313,6 +379,8 @@ class ClickingSettingsWidget:
                 self._profile.toggle_click_interface(ci, enabled)
                 if ci is ClickInterface.VOICE:
                     self._on_voice_changed(self._profile)
+                elif ci is ClickInterface.DWELL:
+                    self._on_dwell_changed(self._profile)
         return cb
 
     def _set_settings_enabled(self, ci: ClickInterface, enabled: bool) -> None:
@@ -364,6 +432,7 @@ class ClickingSettingsWidget:
     def apply_runtime(self) -> None:
         if self._profile is not None:
             self._on_voice_changed(self._profile)
+            self._on_dwell_changed(self._profile)
 
     def _on_high(self, sender, app_data, user_data):  # noqa: ARG002
         if self._profile is not None:
@@ -372,3 +441,31 @@ class ClickingSettingsWidget:
     def _on_low(self, sender, app_data, user_data):  # noqa: ARG002
         if self._profile is not None:
             self._profile.face_tracker_settings.click_threshold_low = float(app_data)
+
+    def _dwell_changed(self) -> None:
+        if self._profile is not None:
+            self._on_dwell_changed(self._profile)
+
+    def _on_dwell_time(self, sender, app_data, user_data):  # noqa: ARG002
+        if self._profile is not None:
+            self._profile.dwell_settings.dwell_time_ms = int(app_data)
+            self._dwell_changed()
+
+    def _on_dwell_radius(self, sender, app_data, user_data):  # noqa: ARG002
+        if self._profile is not None:
+            self._profile.dwell_settings.radius_px = int(app_data)
+            self._dwell_changed()
+
+    def _on_dwell_opacity(self, sender, app_data, user_data):  # noqa: ARG002
+        if self._profile is not None:
+            self._profile.dwell_settings.palette_opacity = float(app_data)
+            self._dwell_changed()
+
+    def _on_dwell_orientation(self, sender, app_data, user_data):  # noqa: ARG002
+        if self._profile is None:
+            return
+        for orientation, label in self.ORIENTATION_LABELS.items():
+            if label == app_data:
+                self._profile.dwell_settings.palette_orientation = orientation
+                self._dwell_changed()
+                return

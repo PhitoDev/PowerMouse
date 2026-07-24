@@ -13,3 +13,9 @@ __pycache__/
 
 # Ignore Zed editor configuration
 .zed/
+
+# macOS metadata
+.DS_Store
+
+# Lavish artifacts
+.lavish/

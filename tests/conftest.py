@@ -151,13 +151,17 @@ class FakeInferenceController(InferenceController):
 
 
 class RecordingMouseController(MouseController):
-    def __init__(self) -> None:
+    def __init__(self, position: tuple[int, int] = (55, 66)) -> None:
         self.events: list[MouseEvent] = []
+        self.position = position
         self._lock = threading.Lock()
 
     def handle_event(self, mouse: MouseEvent) -> None:
         with self._lock:
             self.events.append(mouse)
+
+    def get_position(self) -> tuple[int, int]:
+        return self.position
 
 
 class FakeDeviceManager(DeviceManager):

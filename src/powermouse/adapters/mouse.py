@@ -24,6 +24,10 @@ class SystemMouseController(MouseController):
         btn_str = str(button_enum).lower().split('.')[-1]
         return self._button_map.get(btn_str, Button.left)
 
+    def get_position(self) -> tuple[int, int]:
+        x, y = self._mouse.position
+        return (int(x), int(y))
+
     def handle_event(self, mouse_event: MouseEvent) -> None:
         match mouse_event.event_type:
             case MouseEventType.MOVE:

@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
 from .camera import FaceTrackerSettings
+from .dwell import DwellSettings
 from .microphone import Microphone
 from .mouse import ClickInterface
 
@@ -11,8 +12,12 @@ class Profile:
     name: str
     face_tracker_settings: FaceTrackerSettings
     is_active: bool = field(default=False)
+    #: Face-driven cursor movement. Off lets the user pair PowerMouse's
+    #: clicking interfaces with any other pointing method.
+    tracking_enabled: bool = field(default=True)
     click_interfaces: dict[ClickInterface, bool] = field(default_factory=dict)
     microphone: Microphone | None = None
+    dwell_settings: DwellSettings = field(default_factory=DwellSettings)
 
     def set_active(self, active: bool):
         self.is_active = active
