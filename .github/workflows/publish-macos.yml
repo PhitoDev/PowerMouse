@@ -41,6 +41,12 @@ jobs:
                       --apple-id "$APPLE_ID" \
                       --team-id "$APPLE_TEAM_ID" \
                       --password "$APPLE_APP_PASSWORD"
+            - name: Pre-build wheels for sdist-only requirements
+              # Briefcase cannot install sdist-only packages into macOS apps;
+              # srt (a vosk dependency) only publishes an sdist.
+              run: |
+                  mkdir -p wheels
+                  python3 -m pip wheel --no-deps srt -w wheels
             - name: Build artifacts
               env:
                   MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}

@@ -59,10 +59,15 @@ permission.camera = "PowerMouse needs webcam access to track your face for hands
 permission.microphone = "PowerMouse needs microphone access for offline voice clicking."
 
 [tool.briefcase.app.powermouse.macOS]
-# Floor set by dependency wheels: numpy>=2.4.4 ships macosx_14_0 wheels,
-# opencv-python/dearpygui need 13.0.
-min_os_version = "14.0"
-universal_build = true
+# Floor set by dependency arm64 wheels: opencv-python and dearpygui ship
+# macosx_13_0_arm64 wheels.
+min_os_version = "13.0"
+# mediapipe publishes arm64-only macOS wheels, so a universal (x86_64+arm64)
+# build cannot resolve requirements.
+universal_build = false
+# Briefcase macOS apps cannot install sdist-only requirements (e.g. srt, a
+# vosk dependency). CI pre-builds those wheels into ./wheels.
+requirement_installer_args = ["--find-links", "wheels"]
 
 [tool.briefcase.app.powermouse.windows]
 
