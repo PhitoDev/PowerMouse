@@ -12,6 +12,7 @@ thread and are swapped in atomically.
 from __future__ import annotations
 
 import json
+import os
 import queue
 import subprocess
 import sys
@@ -63,12 +64,19 @@ class PaletteGeometry:
 
 
 def _default_spawn() -> subprocess.Popen:
+    # From source, ``sys.executable`` is a real Python interpreter and ``-m``
+    # runs the palette module directly. In a Briefcase-packaged app it is the
+    # app's stub binary, which ignores ``-m`` and always reruns
+    # ``powermouse.__main__`` -- without the env var below that would open
+    # another main window (recursively). ``powermouse/__main__.py`` checks
+    # POWERMOUSE_PALETTE and dispatches to the palette instead.
     return subprocess.Popen(
         [sys.executable, "-m", "powermouse.palette"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
         text=True,
+        env={**os.environ, "POWERMOUSE_PALETTE": "1"},
     )
 
 

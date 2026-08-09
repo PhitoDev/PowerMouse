@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.1
+
+- Fixed the packaged macOS app endlessly opening new main windows instead of
+  the dwell palette: the app launcher stub always reruns the main entry
+  point, so the palette subprocess is now routed through an environment
+  variable dispatch instead of `python -m`.
+
 ## v0.3.0
 
 - Implemented dwell clicking with a translucent floating palette offering

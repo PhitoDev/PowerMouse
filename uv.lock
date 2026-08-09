@@ -1076,7 +1076,7 @@ wheels = [
 
 [[package]]
 name = "powermouse"
-version = "0.2.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "cv2-enumerate-cameras" },
