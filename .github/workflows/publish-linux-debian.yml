@@ -27,4 +27,8 @@ jobs:
                   VERSION=$(uv version --short)
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  gh release create "Debian-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  if gh release view "Debian-v$VERSION" >/dev/null 2>&1; then
+                      echo "Release Debian-v$VERSION already exists; skipping."
+                  else
+                      gh release create "Debian-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  fi

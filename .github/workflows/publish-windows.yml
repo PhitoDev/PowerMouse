@@ -41,4 +41,9 @@ jobs:
                   $VERSION = (&uv version --short).Trim()
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  gh release create "Windows-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  gh release view "Windows-v$VERSION" *>$null
+                  if ($LASTEXITCODE -eq 0) {
+                      Write-Host "Release Windows-v$VERSION already exists; skipping."
+                  } else {
+                      gh release create "Windows-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  }

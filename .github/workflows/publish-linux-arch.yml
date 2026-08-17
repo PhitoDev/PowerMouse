@@ -31,4 +31,8 @@ jobs:
                   VERSION=$(uv version --short)
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  gh release create "Arch-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  if gh release view "Arch-v$VERSION" >/dev/null 2>&1; then
+                      echo "Release Arch-v$VERSION already exists; skipping."
+                  else
+                      gh release create "Arch-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  fi

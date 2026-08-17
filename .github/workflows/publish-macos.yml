@@ -10,6 +10,12 @@ permissions:
 jobs:
     publish:
         runs-on: macos-latest
+        env:
+            # Use a uv-managed Python (python-build-standalone), not the
+            # runner's Homebrew Python: scripts/macos_add_tkinter.py copies
+            # tkinter/Tcl/Tk from the build Python into the app bundle, and
+            # Homebrew's Python ships without tkinter.
+            UV_MANAGED_PYTHON: "1"
         steps:
             - name: Checkout code
               uses: actions/checkout@v4
@@ -68,4 +74,8 @@ jobs:
                   VERSION=$(uv version --short)
                   git config user.name "github-actions[bot]"
                   git config user.email "github-actions[bot]@users.noreply.github.com"
-                  gh release create "macOS-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  if gh release view "macOS-v$VERSION" >/dev/null 2>&1; then
+                      echo "Release macOS-v$VERSION already exists; skipping."
+                  else
+                      gh release create "macOS-v$VERSION" ./dist/* --notes-file ./CHANGELOG.md
+                  fi
