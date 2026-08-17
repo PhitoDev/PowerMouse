@@ -81,4 +81,11 @@ requirement_installer_args = ["--constraint", "constraints.txt"]
 
 [tool.briefcase.app.powermouse.linux.system.debian]
 system_requires = []
-system_runtime_requires = ["libportaudio2"]
+# python3-tk: the dwell palette is a Tk app; system Pythons ship tkinter
+# as a separate package.
+system_runtime_requires = ["libportaudio2", "python3-tk"]
+
+[tool.briefcase.app.powermouse.linux.system.arch]
+# tk: tkinter support for the dwell palette; portaudio: sounddevice
+# runtime for voice clicking (parity with libportaudio2 on Debian).
+system_runtime_requires = ["tk", "portaudio"]

@@ -7,6 +7,10 @@
   locked versions used when running from source, crashing the native
   tracking and voice layers. Packaged builds now install the exact locked
   dependency versions on macOS and Windows.
+- The dwell palette now works in packaged builds: Tcl/Tk is bundled into the
+  macOS and Windows apps (the stock Briefcase Python ships without tkinter),
+  and the Linux packages declare the tkinter system dependency (python3-tk
+  on Debian, tk on Arch).
 - The dwell palette subprocess stops respawning after several immediate
   exits instead of looping forever.
 

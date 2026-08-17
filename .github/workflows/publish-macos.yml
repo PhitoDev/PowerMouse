@@ -56,6 +56,9 @@ jobs:
                   MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
               run: |
                   uv run briefcase create macOS
+                  # The Briefcase support package ships without tkinter, which
+                  # the dwell palette needs; copy it in before signing.
+                  uv run python scripts/macos_add_tkinter.py build/powermouse/macos/app/PowerMouse.app
                   uv run briefcase build macOS
                   uv run briefcase package macOS --identity "$MACOS_SIGNING_IDENTITY"
             - name: Release

@@ -19,9 +19,19 @@ jobs:
               # Briefcase installs requirements with pip, ignoring uv.lock;
               # this constraints file pins it to the locked versions.
               run: uv export --format requirements-txt --no-hashes --no-dev --no-emit-project -o constraints.txt
+            - name: Install full CPython (tkinter source)
+              id: full-python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.14"
             - name: Build artifacts
               run: |
                   uv run briefcase create
+                  # The embeddable Python that Briefcase bundles ships without
+                  # tkinter, which the dwell palette needs; copy it in from the
+                  # full CPython install (includes a Tcl-init smoke test).
+                  $prefix = Split-Path -Parent "${{ steps.full-python.outputs.python-path }}"
+                  .\scripts\windows_add_tkinter.ps1 -BundleRoot build\powermouse\windows\app -SourcePrefix $prefix
                   uv run briefcase build
                   uv run briefcase package
             - name: Release
