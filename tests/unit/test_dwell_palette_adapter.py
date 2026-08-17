@@ -141,6 +141,22 @@ class TestSubprocessDwellPalette:
         palette.show()
         assert spawned == [True]
 
+    def test_respawn_gives_up_after_rapid_exits(self):
+        """A palette that dies instantly (e.g. tkinter missing in a packaged
+        app) must not be respawned forever."""
+        spawned = []
+
+        def spawn():
+            process = FakePaletteProcess()
+            process.die()
+            spawned.append(process)
+            return process
+
+        palette = SubprocessDwellPalette(spawn=spawn)
+        for _ in range(10):
+            palette.show()
+        assert len(spawned) == 3
+
     def test_show_replays_state_to_child(self, fake_process):
         palette = make_palette(fake_process)
         settings = DwellSettings(

@@ -15,6 +15,10 @@ jobs:
               uses: actions/checkout@v4
             - name: Install the latest version of uv
               uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+            - name: Export locked requirement constraints
+              # Briefcase installs requirements with pip, ignoring uv.lock;
+              # this constraints file pins it to the locked versions.
+              run: uv export --format requirements-txt --no-hashes --no-dev --no-emit-project -o constraints.txt
             - name: Build artifacts
               run: |
                   uv run briefcase create

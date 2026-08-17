@@ -17,6 +17,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from typing import Callable
 
 from powermouse.domain.controllers.dwell_palette import DwellPaletteController
@@ -80,6 +81,14 @@ def _default_spawn() -> subprocess.Popen:
     )
 
 
+# A palette process that dies this quickly after spawning is considered
+# broken (e.g. tkinter missing from a packaged app) rather than crashed.
+_RAPID_EXIT_WINDOW_S = 5.0
+# After this many consecutive rapid exits, stop respawning for the rest of
+# the session instead of burning CPU on a spawn loop.
+_MAX_RAPID_EXITS = 3
+
+
 class SubprocessDwellPalette(DwellPaletteController):
     def __init__(self, spawn: Callable[[], subprocess.Popen] = _default_spawn):
         self._spawn = spawn
@@ -91,6 +100,9 @@ class SubprocessDwellPalette(DwellPaletteController):
         # Last state, replayed after a (re)spawn so a crashed palette comes
         # back looking the way it did.
         self._replay: dict[str, dict] = {}
+        self._spawned_at = 0.0
+        self._rapid_exits = 0
+        self._disabled = False
 
     # -- process lifecycle -------------------------------------------------
 
@@ -100,12 +112,22 @@ class SubprocessDwellPalette(DwellPaletteController):
     def _ensure_process_locked(self) -> bool:
         if self._alive():
             return True
+        if self._disabled:
+            return False
+        if time.monotonic() - self._spawned_at < _RAPID_EXIT_WINDOW_S:
+            self._rapid_exits += 1
+            if self._rapid_exits >= _MAX_RAPID_EXITS:
+                self._disabled = True
+                return False
+        else:
+            self._rapid_exits = 0
         self._geometry.clear()
         try:
             self._process = self._spawn()
         except OSError:
             self._process = None
             return False
+        self._spawned_at = time.monotonic()
         threading.Thread(
             target=self._read_events,
             args=(self._process,),

@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.2
+
+- Fixed the packaged macOS app crashing at startup: packaged builds installed
+  unpinned latest dependencies (mediapipe 1.0, OpenCV 5.0) instead of the
+  locked versions used when running from source, crashing the native
+  tracking and voice layers. Packaged builds now install the exact locked
+  dependency versions on macOS and Windows.
+- The dwell palette subprocess stops respawning after several immediate
+  exits instead of looping forever.
+
 ## v0.3.1
 
 - Fixed the packaged macOS app endlessly opening new main windows instead of

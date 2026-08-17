@@ -3,6 +3,7 @@ build/
 dist/
 logs/
 wheels/
+constraints.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -1,6 +1,6 @@
 [project]
 name = "PowerMouse"
-version = "0.3.1"
+version = "0.3.2"
 description = "Hands-free mouse control using face tracking"
 authors = [
     { name = "Ralph Dugue", email = "ralph@phito.dev" }
@@ -67,9 +67,14 @@ min_os_version = "13.0"
 universal_build = false
 # Briefcase macOS apps cannot install sdist-only requirements (e.g. srt, a
 # vosk dependency). CI pre-builds those wheels into ./wheels.
-requirement_installer_args = ["--find-links", "wheels"]
+# Briefcase installs from the version floors above, not uv.lock; constrain it
+# to the locked versions (CI exports constraints.txt from uv.lock) so the
+# packaged app ships the same dependency versions that run from source.
+# Unpinned installs shipped mediapipe 1.0/opencv 5.0, which crash at startup.
+requirement_installer_args = ["--find-links", "wheels", "--constraint", "constraints.txt"]
 
 [tool.briefcase.app.powermouse.windows]
+requirement_installer_args = ["--constraint", "constraints.txt"]
 
 [tool.briefcase.app.powermouse.linux]
 # Linux system package backend. Override per-distro as needed.

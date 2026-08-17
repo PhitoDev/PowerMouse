@@ -41,6 +41,10 @@ jobs:
                       --apple-id "$APPLE_ID" \
                       --team-id "$APPLE_TEAM_ID" \
                       --password "$APPLE_APP_PASSWORD"
+            - name: Export locked requirement constraints
+              # Briefcase installs requirements with pip, ignoring uv.lock;
+              # this constraints file pins it to the locked versions.
+              run: uv export --format requirements-txt --no-hashes --no-dev --no-emit-project -o constraints.txt
             - name: Pre-build wheels for sdist-only requirements
               # Briefcase cannot install sdist-only packages into macOS apps;
               # srt (a vosk dependency) only publishes an sdist.
