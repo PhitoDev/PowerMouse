@@ -1,6 +1,6 @@
 [project]
 name = "PowerMouse"
-version = "0.3.2"
+version = "0.3.3"
 description = "Hands-free mouse control using face tracking"
 authors = [
     { name = "Ralph Dugue", email = "ralph@phito.dev" }
@@ -72,6 +72,12 @@ universal_build = false
 # packaged app ships the same dependency versions that run from source.
 # Unpinned installs shipped mediapipe 1.0/opencv 5.0, which crash at startup.
 requirement_installer_args = ["--find-links", "wheels", "--constraint", "constraints.txt"]
+# Briefcase's permission.microphone only emits the App Sandbox entitlement
+# (com.apple.security.device.microphone). Hardened-runtime (notarized) apps
+# need com.apple.security.device.audio-input for Core Audio input; without
+# it macOS never prompts and the microphone delivers silence, so voice
+# clicking silently fails in packaged builds.
+entitlement."com.apple.security.device.audio-input" = true
 
 [tool.briefcase.app.powermouse.windows]
 requirement_installer_args = ["--constraint", "constraints.txt"]

@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.3
+
+- Fixed voice clicking silently doing nothing in the packaged macOS app: the
+  signed, hardened-runtime app was missing the
+  `com.apple.security.device.audio-input` entitlement, so macOS never showed
+  the microphone permission prompt and delivered silent audio. The app now
+  requests microphone access on first use of voice clicking.
+
 ## v0.3.2
 
 - Fixed the packaged macOS app crashing at startup: packaged builds installed
